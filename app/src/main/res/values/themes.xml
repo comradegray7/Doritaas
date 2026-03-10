@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="MySplashTheme" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/my_primary</item>-->
+        <item name="windowSplashScreenAnimationDuration">0</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/logo_launcher_foreground</item>
+    </style>
+    <style name="Theme.MySplashTheme" parent="Theme.Material3.DayNight"/>
+</resources>
+

@@ -211,9 +211,9 @@ For questions, suggestions, or contributions, please open an issue or submit a p
 ---
 ## 📝 License
 
-This project is licensed under the UMUNTHU HUB Noncommercial License.
+This project is licensed under the UMUNTHU HUB Dual-Tier License.
 
-- **Noncommercial use is permitted.**
-- **Commercial use requires a paid license.**
+- **Noncommercial & Educational use is free.**
+- **Commercial use requires a Non-Exclusive or Exclusive commercial license.**
 
 See the [LICENSE](./LICENSE) file for details and contact information.

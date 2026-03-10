@@ -1,0 +1,498 @@
+<resources>
+    <string name="app_name">Doritaas</string>
+
+    <string name="logo">Doritaas</string>
+
+    <!--    on boarding messages -->
+
+    <!--    screen one-->
+    <string name="welcome_title">Welcome to Doritaas</string>
+    <string name="welcome_subtitle">Are you tired of high prices?, delays?,
+        and low quality goods?, search no further, Doritaas offers a wide range
+        of product catalogue and prices both on wholesale
+        and retail.</string>
+
+    <!--    screen two-->
+    <!--general texts-->
+
+    <!--    screen three-->
+    <string name="create_account_now_title">Create an account now!</string>
+    <string name="create_account_now_subtitle">Begin by creating a user account
+        and enjoy promotions, gifts and many more, all on Doritaas</string>
+
+    <!-- home section strings-->
+
+    <!-- network manager strings-->
+    <string name="offline">Offline</string>
+
+    <!--sign in /up messages-->
+    <string name="sign_in">Sign In</string>
+    <string name="sign_out">Sign Out</string>
+    <string name="special_offer">Sign in to start using this feature.</string>
+    <string name="sign_in_required">Sign In Required</string>
+    <string name="dashboard">Go to Dashboard</string>
+    <string name="sign_up">Sign Up</string>
+    <string name="create_account">Create Account</string>
+    <string name="or">or</string>
+    <string name="do_not_have_account">Do not have an Account?</string>
+    <string name="already_have_account">Already have an Account?</string>
+    <string name="sign_in_to_your_account">Sign in to your Account</string>
+    <string name="sign_in_with_otp">Sign in With OTP</string>
+
+    <!-- sign in/up with social and email   -->
+    <string name="sign_in_with_google">Continue with Google</string>
+    <string name="sign_in_with_Email">Continue with Email</string>
+    <string name="sign_in_with_phone">Continue with Phone</string>
+
+    <!--    password reset-->
+    <string name="forgot_password">Forget Password?</string>
+    <string name="reset_password">Reset Password</string>
+    <string name="do_not_worry">Don\'t worry! Enter your email address and we\'ll send you a code to reset your password.</string>
+    <string name="remember_password">Remember your password? </string>
+
+    <!--    set new password-->
+
+    <!--icons -->
+
+    <!-- reset code screen-->
+
+    <!--   app screen messages-->
+    <!--    shopping cart screen messages -->
+    <string name="add_to_cart">Add to Cart</string>
+    <string name="your_Cart_is_empty">Your cart is empty</string>
+    <string name="in_cart">In Cart</string>
+    <string name="add_to_favorite">Add to Favorite</string><![CDATA[">
+    ">
+    ]]>
+    <string name="check_out">Proceed to CheckOut</string>
+    <string name="out_of_stock">Out Of Stock</string>
+    <string name="delete_all">Delete All</string>
+    <string name="cancel">Cancel</string>
+    <string name="confirm">Confirm</string>
+    <string name="close">Close</string>
+    <string name="change_number">Change Number</string>
+    <string name="total_amount">Total Amount</string>
+    <string name="send_otp">Send OTP</string>
+    <string name="otp">OTP</string>
+    <string name="phone_placeholder">+1234567890</string>
+    <string name="otp_placeholder">000000</string>
+    <string name="phone_number">Phone Number</string>
+    <string name="enter_phone_number">Enter Phone Number</string>
+
+    <string name="add_product">Add Product</string>
+    <string name="add_products">Add Products</string>
+    <string name="product_name">Product Name *</string>
+    <string name="price">Price</string>
+    <string name="pricing">Pricing</string>
+    <string name="price_tag">$</string>
+    <string name="supporting_images">Supporting Images</string>
+    <string name="valid_image_required">Valid image URL is required</string>
+    <string name="select_images">Select Images</string>
+    <string name="select_image">No image selected</string>
+    <string name="old_price">Old Price</string>
+    <string name="product_specifications">Product Specifications"</string>
+    <string name="brand">Brand</string>
+    <string name="quantity">Quantity</string>
+    <string name="qty">Qty</string>
+    <string name="description">Description</string>
+    <string name="enter_description">Enter description</string>
+    <string name="brief_description">Brief description…</string>
+    <string name="delete_product">Delete Product?</string>
+    <string name="action_warning">This action cannot be undone.</string>
+    <string name="manage_products">Manage Products</string>
+    <string name="edit_product">Update Product</string>
+    <string name="update_product">Edit Product</string>
+    <string name="in_stock">In Stock</string>
+    <string name="status">Status</string>
+    <string name="uploading">Uploading…</string>
+    <string name="loading">Loading…</string>
+    <string name="media">Media</string>
+    <string name="image_url">Image Url</string>
+    <string name="image_error">Image error</string>
+    <string name="image_url_placeholder">https://example.com/image.jpg</string>
+    <string name="redirect_url">Redirect Url</string>
+    <string name="redirect_url_placeholder">https://example.com/image.jpg</string>
+    <string name="required">Required</string>
+    <string name="quantity_state">Quantity must be a positive number</string>
+    <string name="items_total">Items Total</string>
+
+    <!-- Delivery Address -->
+    <string name="add_delivery_address">Add Delivery Address</string>
+    <string name="add_address">Create</string>
+    <string name="create_address">Add Address</string>
+    <string name="order_details">Order Details</string>
+    <string name="creating_order">Creating Order…</string>
+    <string name="payment_successful">Payment Successful</string>
+    <string name="customer_information">customer_information</string>
+    <string name="personal_information">Personal Information</string>
+    <string name="address_information">Address Information</string>
+    <string name="address_line_1">Address Line 1</string>
+    <string name="enter_address_line_1">Enter street address</string>
+    <string name="address_line_2">Address Line 2</string>
+    <string name="enter_address_line_2_optional">Apartment, suite, etc. (optional)</string>
+    <string name="city">City</string>
+    <string name="enter_city">Enter city</string>
+    <string name="state">State</string>
+    <string name="enter_state">Enter state</string>
+    <string name="zip_code">Zip Code</string>
+    <string name="enter_zip_code">Enter zip code</string>
+    <string name="country">Country</string>
+    <string name="enter_country">Enter country</string>
+    <string name="additional_options">Additional Options</string>
+    <string name="address_type">Address Type</string>
+    <string name="set_as_default_address">Set as default address</string>
+    <string name="delete_address">Delete Address</string>
+    <string name="delivery_address">Delivery Address</string>
+    <string name="edit_delivery_address">Edit Delivery Address</string>
+    <string name="no_saved_addresses">No Saved Addresses</string>
+    <string name="default_address">Default Address</string>
+    <string name="select_delivery_address">Select Delivery Address</string>
+    <string name="select_delivery_address_to_proceed">Please select a delivery address to proceed</string>
+    <string name="no_saved_address">"No address saved</string>
+    <string name="no_address_selected">No address Selected</string>
+
+    <string name="add_category">Add New Category</string>
+    <string name="required_field">* Required field</string>
+    <string name="view_mode">View Mode</string>
+    <string name="category_name">Category Name</string>
+    <string name="parent_category">"Parent Category</string>
+    <string name="delete_all_categories">Delete all subcategories first</string>
+    <string name="action_undone">"This action cannot be undone.</string>
+    <string name="remove_all_reassign">Remove or reassign products first</string>
+    <string name="category_name_empty_state">Category name cannot be empty</string>
+    <string name="edit_category">Edit Category</string>
+    <string name="save">Save</string>
+    <string name="delete_category">Delete Category?</string>
+    <string name="delete">Delete</string>
+    <string name="edit">Edit</string>
+    <string name="full_path">Full Path:</string>
+    <string name="subcategories_full_path">Updating will also update paths for all subcategories</string>
+    <string name="search_categories">Search categories…</string>
+    <string name="manage_categories">Manage Categories</string>
+    <string name="category_error">Error loading Categories</string>
+    <string name="no_categories_available">No Categories Available</string>
+    <string name="add_first_category">Add your first category to get started</string>
+
+    <string name="select_date">Select date</string>
+    <string name="start">Start:</string>
+    <string name="end">End:</string>
+
+    <string name="analytics_error">Error Loading Analytics</string>
+    <string name="rate_product">Rate Product</string>
+    <string name="customer_reviews">Customer Reviews</string>
+    <string name="no_reviews">No reviews yet</string>
+    <string name="search_reviews">Search Reviews</string>
+    <string name="be_first_reviews">Be the first to Review</string>
+    <string name="update_review">Update Review</string>
+
+    <string name="add_size">Add New Size</string>
+    <string name="size">Size Name</string>
+    <string name="select_size">Select Size</string>
+    <string name="default_size">Will use default sizes if none selected</string>
+    <string name="no_size_available">No sizes available</string>
+    <string name="no_size_options">No size options available</string>
+    <string name="size_empty_state">Size cannot be empty</string>
+    <string name="edit_size">Edit Size</string>
+    <string name="delete_size">Delete Size</string>
+    <string name="search_sizes">Search Sizes…</string>
+    <string name="manage_sizes">Manage Sizes</string>
+    <string name="size_placeholder">e.g., S, M, L, XL, 32, 34</string>
+    <string name="size_error">Error loading Sizes</string>
+    <string name="error">Error</string>
+
+    <string name="manage_orders">Manage Orders</string>
+    <string name="my_orders">My orders</string>
+    <string name="search_orders">Search orders</string>
+    <string name="orders_error">Failed to load orders</string>
+    <string name="delete_order">Delete Order</string>
+    <string name="edit_order">Edit Order</string>
+    <string name="continue_shopping">Continue Shopping</string>
+    <string name="view_order">View Order Details</string>
+    <string name="thank_you">Thank you for your purchase</string>
+    <string name="order_confirmed">Order Confirmed!</string>
+    <string name="update">Update</string>
+    <string name="extend">Extend</string>
+    <string name="submit">Submit</string>
+
+    <string name="add_color">Add New Color</string>
+    <string name="color_name">Color Name</string>
+    <string name="enter_color_name">Enter Color Name</string>
+    <string name="select_color">Select Color</string>
+    <string name="enter_hexCode">Enter HexCode</string>
+    <string name="hex_code">Color HexCode</string>
+    <string name="edit_color">Edit Color</string>
+    <string name="delete_color">Delete Color</string>
+    <string name="search_colors">Search colors…</string>
+    <string name="manage_colors">Manage Colors</string>
+    <string name="colors">Colors (comma separated)</string>
+    <string name="color_error">Error loading colors</string>
+    <string name="no_colors_options">No color options available</string>
+    <string name="inventory">Inventory</string>
+    <string name="category_and_brand">Category and Brand</string>
+    <string name="discount_type">Discount Type</string>
+    <string name="discount_value">Discount Value</string>
+    <string name="no_cap">0 (no cap)</string>
+    <string name="max_discount">Max Discount Cap ($)</string>
+    <string name="invalid">Invalid</string>
+    <string name="no_minimum">0 (no minimum)</string>
+    <string name="minimum_purchase">Minimum Purchase ($)</string>
+
+    <string name="add_new_brand">Add New Brand</string>
+    <string name="add_brand">Add Brand</string>
+    <string name="brand_name">Brand Name</string>
+    <string name="brand_empty_state">Brand cannot be empty</string>
+    <string name="edit_brand">Edit Brand</string>
+    <string name="brand_required">Brand is Required</string>
+    <string name="delete_brand">Delete Brand</string>
+    <string name="search_brands">Search Brands…</string>
+    <string name="manage_brand">Manage Brands</string>
+    <string name="brand_error">Error loading Brands</string>
+
+    <string name="tag_description_placeholder">Tag description placeholder</string>
+    <string name="got_it">Got it</string>
+    <string name="system_tag">System tag</string>
+    <string name="system_tag_include">System tag include:</string>
+    <string name="system_tag_warning">System tags cannot be deleted because they are essential for app functionality.</string>
+    <string name="tag_name">Tag Name</string>
+    <string name="product_tags">Product tags</string>
+    <string name="no_selected_tags">No selected tags</string>
+    <string name="select_tag">Select tags</string>
+    <string name="delete_tag">Delete Tag</string>
+    <string name="tag_caution">Products with this tag will keep the tag, but it won\'t appear in the tag list</string>
+    <string name="tag_caution_warning">This is a system tag. Changes may affect core functionality.</string>
+    <string name="search_tags">Search Tags…</string>
+    <string name="update_tag">Update Tag</string>
+    <string name="save_tag">Save tag</string>
+    <string name="create_tag">Create Tag</string>
+    <string name="manage_tags">Manage Tags</string>
+    <string name="delete_tag_prompt">Are you sure you want to delete this tag?</string>
+    <string name="tag_placeholder">e.g., Promotions tag, limited, prime_eligible etc.</string>
+
+    <string name="add_carousel">Add carousel</string>
+    <string name="carousel_name">Carousel name</string>
+    <string name="search_carousels">Search carousel</string>
+    <string name="edit_carousel">Edit carousels</string>
+    <string name="carousel_image">Carousel image</string>
+    <string name="carousel_required">Carousel is required</string>
+    <string name="carousel_description">Carousel description</string>
+    <string name="carousel_description_placeholder">Carousel is required</string>
+    <string name="delete_carousel">Delete carousel</string>
+    <string name="manage_carousel">Manage carousel</string>
+    <string name="carousel_error">Error loading carousel</string>
+
+    <string name="add_new_promotion">Add New promotion</string>
+    <string name="edit_promotion">Edit promotion</string>
+    <string name="delete_promotion">Delete promotion</string>
+    <string name="delete_promotion_warning">Are you sure you want to delete this promotion?</string>
+    <string name="search_promotions">Search promotion…</string>
+    <string name="manage_promotions">Manage promotions</string>
+    <string name="promotions_label">e.g., Summer sale 2024</string>
+    <string name="promotions_error">Error loading promotions</string>
+    <string name="promotion_caution">This will remove all product associations</string>
+    <string name="title">Title</string>
+    <string name="no_promotion_product">No products in this promotion</string>
+    <string name="promotion_details">Promotion details…</string>
+
+    <!-- Prime Membership General -->
+    <string name="prime">Prime</string>
+    <string name="extend_membership">Extend Prime Membership</string>
+    <string name="select_extension_period">Select extension period:</string>
+    <string name="search_prime">Search Prime</string>
+    <string name="join_prime">Join Prime</string>
+    <string name="prime_eligible">Prime Eligible Products</string>
+    <string name="prime_membership">Prime Membership</string>
+    <string name="manage_prime">Manage Prime Memberships</string>
+    <string name="no_prime_member_found">No prime members found</string>
+    <string name="not_prime_member">Not a Prime Member</string>
+
+    <!-- Lightning Deals Screen -->
+    <string name="best_seller">Best Seller</string>
+
+    <!-- Lightning Deals Screen -->
+    <string name="limited_edition">Limited Edition</string>
+
+    <!-- Lightning Deals Screen -->
+    <string name="eco_friendly">Eco Friendly</string>
+
+    <!-- Lightning Deals Screen -->
+    <string name="new_arrival">New Arrival</string>
+
+    <!-- Lightning Deals Screen -->
+    <string name="flash_deals">Flash Deals</string>
+    <string name="flash">Flash</string>
+    <string name="no_deals_found">No deals found</string>
+    <string name="browse_products">Browse Products</string>
+
+    <!-- Daily Essentials Screen -->
+    <string name="daily_essentials">Daily Essentials</string>
+    <string name="top_deals">Top Deals</string>
+    <string name="no_savings">No Savings</string>
+
+    <!-- Join Prime Form -->
+    <string name="card_number">Card Number</string>
+    <string name="card_number_placeholder">1234 5678 9012 3456</string>
+    <string name="expiry_date">Expiry Date</string>
+    <string name="expiry_placeholder">MM/YY</string>
+    <string name="cvv">CVV</string>
+    <string name="cvv_placeholder">123</string>
+
+    <!-- Prime Benefits -->
+    <string name="prime_benefits">Prime Benefits</string>
+
+    <!-- Prime Plans -->
+    <string name="choose_plan">Choose Your Plan</string>
+
+    <!-- Prime Subscription -->
+    <string name="payment_information">Payment Information</string>
+    <string name="money_back_guarantee">30-day money-back guarantee</string>
+    <string name="welcome_to_prime">Welcome to Prime!</string>
+    <string name="membership_active">Your Prime membership is now active. Enjoy exclusive benefits and savings!</string>
+
+    <!-- Prime Membership Management -->
+    <string name="cancel_membership">Cancel Membership?</string>
+    <string name="cancel_membership_warning">Cancel Prime Membership?</string>
+    <string name="cancel_membership_message">You\'ll lose access to Prime benefits at the end of your billing period. You can continue to use your benefits until then.</string>
+    <string name="keep_membership">Keep Membership</string>
+
+    <!-- Prime Savings -->
+    <string name="your_savings">Your Savings</string>
+    <string name="savings">Savings</string>
+    <string name="prime_member_benefits_applied">Prime Member Benefits Applied</string>
+
+    <!-- Transaction History -->
+    <string name="transaction_history">Transaction History</string>
+    <string name="no_transactions">No transactions yet</string>
+
+    <!-- Checkout with Prime -->
+    <string name="order_summary">Order Summary</string>
+    <string name="filter_orders">Filter Orders</string>
+    <string name="prime_discount">Prime Discount (20%%)</string>
+
+    <!-- Error Messages -->
+
+    <!-- Success Messages -->
+
+    <!-- Prime Notifications -->
+
+    <!-- Shipping Options -->
+
+    <!-- Membership Types -->
+
+    <!-- Membership Status -->
+    <string name="status_pending">PENDING</string>
+
+    <!-- Call to Action -->
+    <string name="join_to_unlock">Join Prime to unlock exclusive benefits and savings</string>
+
+    <string name="add_shipment_method">Add Shipment Method</string>
+    <string name="shipment_name">Shipment Name</string>
+    <string name="shipment_empty_state">Shipment cannot be empty</string>
+    <string name="edit_shipment">Edit Shipment</string>
+    <string name="delete_shipment">Delete Shipment?</string>
+    <string name="search_shipments">Search Shipment…</string>
+    <string name="manage_shipments">Manage Shipment</string>
+    <string name="shipment_error">Error loading Shipment</string>
+    <string name="shipment_label">e.g., Standard Shipping</string>
+    <string name="shipment_method_label">e.g., 3–5 business days"</string>
+    <string name="delivery_method">Delivery Method"</string>
+    <string name="placeholder_Price">0.0</string>
+    <string name="price_state">Enter a valid price</string>
+    <string name="delivery_method_state">Delivery method cannot be empty</string>
+
+    <!--    profile screen messages  -->
+
+    <string name="access_denied">Access Denied</string>
+    <string name="admin_privileges">You need admin privileges to access this page</string>
+    <string name="admin_dashboard">Admin DashBoard</string>
+
+    <!-- action messages   -->
+    <string name="dismiss">Dismiss</string>
+    <string name="next">Next</string>
+    <string name="back">Back</string>
+    <string name="empty_wishlist_subtitle">Add items you love to your favorites.
+Review them anytime and easily move them to your bag.</string>
+    <string name="finish">Finish</string>
+    <string name="buy_now">Buy Now</string>
+    <string name="retry">Refetch</string>
+    <string name="camera">Camera</string>
+    <string name="open_settings"> Open Settings </string>
+    <string name="choose_from_gallery">Choose from Gallery</string>
+    <string name="gallery">Gallery</string>
+    <string name="search_by_image">Search by Image</string>
+    <string name="error_loading_products">Error loading products</string>
+    <string name="search_by_voice">Microphone Permission Required</string>
+    <string name="voice_search_permission_required">Voice search requires microphone access to listen to your voice commands. Please grant the permission in settings.</string>
+    <string name="setting_up_secure_payment">Setting up secure payment…"</string>
+    <string name="secure_payment_powered_by_stripe">Secure payment powered by Stripe</string>
+    <string name="processing_stripe_payment">Preparing payment…</string>
+
+    <!--    form texts-->
+    <string name="full_name">FullName</string>
+    <string name="enter_full_name">Enter Your FullName</string>
+    <string name="email">Email</string>
+    <string name="enter_email">Enter Your Email</string>
+    <string name="phone">Phone</string>
+    <string name="enter_phone">Enter Your Phone Number</string>
+    <string name="password">Password</string>
+    <string name="enter_password">Enter Your Password</string>
+
+    <!-- forms destination names-->
+
+    <!--  app bar title  -->
+    <string name="shopping_cart_title">Shopping Cart</string>
+    <string name="clear_cart">Clear Shopping Cart</string>
+    <string name="all_products_title">All Products</string>
+    <string name="cart_error">Cart Error</string>
+    <string name="order_summary_title">Order Summary</string>
+    <string name="customer_order_title">Order For</string>
+    <string name="favorites_title">My Favorites</string>
+    <string name="favorites_error">Favorites Error</string>
+    <string name="product_details_title">Product Details</string>
+    <string name="product_promotions_title">Product Promotions</string>
+    <string name="filter_by_discount">Filter by discount</string>
+    <string name="special_offers_title">Special Offers</string>
+    <string name="shop_by_category">Shop By Category</string>
+    <string name="limited_time_left">Limited time offer</string>
+    <string name="check_back_soon">Check back soon for amazing deals!</string>
+    <string name="trending_searches">Trending Searches"</string>
+    <string name="start_searching">Start searching to see trending items</string>
+
+    <!--  all products screen-->
+    <string name="clear_wishlist">Clear WishList</string>
+
+    <!-- product content-->
+    <string name="trending_products">Trending Products</string>
+    <string name="tax">Tax</string>
+    <string name="total">Total</string>
+    <string name="sub_total">Sub Total</string>
+    <string name="free">Free</string>
+    <string name="shipping_option">Shipping Options</string>
+    <string name="shipping">Shipping Options</string>
+    <string name="no_shipping_option">No shipping options available"</string>
+    <string name="shipping_total">Shipping Total</string>
+    <string name="featured_products">Featured Products</string>
+    <string name="free_products">Free Shipping Products</string>
+    <string name="contact_info">Contact Information</string>
+
+    <!-- search screen-->
+    <string name="category">Category</string>
+    <string name="select_category">Select Category</string>
+    <string name="recent_search">Recent Searches</string>
+    <string name="no_products_found">No Product Found</string>
+    <string name="try_different_search">Try different search</string>
+    <string name="no_results">No Results</string>
+    <string name="clear_filter">Clear Filters</string>
+    <string name="start_shopping">Start Shopping</string>
+    <string name="search_products">Search Products…</string>
+    <string name="adjust_search">Try adjusting your filters to see more results</string>
+    <string name="clear_all">Clear All</string>
+    <string name="suggestions">Suggestions</string>
+    <string name="price_range">Price Range</string>
+    <string name="sort_by">Sort By</string><![CDATA[
+    file name-->
+
+    //face book app id and client token
+    ]]>
+    <string name="web_client_id">759628092968-o7mkfqqfvpctbsu423jr1at5prvd3th4.apps.googleusercontent.com</string>
+
+</resources>

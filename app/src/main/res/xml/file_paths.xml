@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- For camera photos -->
+    <external-files-path
+        name="my_images"
+        path="Pictures/" />
+    <!-- For cache files -->
+    <cache-path
+        name="app_cache"
+        path="/" />
+
+    <cache-path
+        name="camera_images"
+        path="/" />
+    <!-- For external cache -->
+    <external-cache-path
+        name="external_app_cache"
+        path="/" />
+
+    <!-- For root external files -->
+    <external-path
+        name="external_files"
+        path="." />
+</paths>

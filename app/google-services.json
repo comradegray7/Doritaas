@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "759628092968",
+    "project_id": "doritaas-85a56",
+    "storage_bucket": "doritaas-85a56.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:759628092968:android:f92de774dddda99c82071d",
+        "android_client_info": {
+          "package_name": "com.example.myapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "759628092968-o7mkfqqfvpctbsu423jr1at5prvd3th4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA881cAJysBuKoW59tuV9h4ceccFCyBNZA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "759628092968-o7mkfqqfvpctbsu423jr1at5prvd3th4.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:759628092968:android:7192f1628471971e82071d",
+        "android_client_info": {
+          "package_name": "com.umunthuhub.doritass"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "759628092968-o7mkfqqfvpctbsu423jr1at5prvd3th4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA881cAJysBuKoW59tuV9h4ceccFCyBNZA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "759628092968-o7mkfqqfvpctbsu423jr1at5prvd3th4.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
