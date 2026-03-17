@@ -50,10 +50,9 @@ import jakarta.inject.Inject
  */
 class MainActivity : ComponentActivity() {
 
-    //   Inject AppStateManager
+    // Inject AppStateManager
     @Inject
     lateinit var appStateManager: AppStateManager
-
 
     private var currentRoute: String? = null
 

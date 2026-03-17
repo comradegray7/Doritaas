@@ -48,7 +48,7 @@ class AuthApplication : Application(){
         // Initialize Cloudinary
         val config = hashMapOf(
             "cloud_name" to "dhcfdxkjc",  // Required
-            "api_key" to "811169974949235",        // Optional: only for uploads
+            "api_key" to "811169974949235", // Optional: only for uploads
             "api_secret" to "IremZCz_uINUm1pLFIi5iQE2PCA"   // Optional: only for uploads
         )
 

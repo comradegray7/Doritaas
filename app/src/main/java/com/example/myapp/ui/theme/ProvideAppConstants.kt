@@ -219,15 +219,15 @@ fun ProvideAppConstants(
     val carouselPageSize  = when {
         windowSizeClass.isCompact -> PageSize.Fixed(customSpacing.custom260)
         windowSizeClass.isMedium ->   PageSize.Fixed(customSpacing.custom280)
-        windowSizeClass.isExpanded ->  PageSize.Fixed(customSpacing.custom300)
+        windowSizeClass.isExpanded ->  PageSize.Fixed(customSpacing.custom280)
         else ->  PageSize.Fixed(customSpacing.custom260)
     }
 
     // Carousel image height - height of images in carousel
     val carouselImageHeight = when {
         windowSizeClass.isCompact -> customSpacing.custom130
-        windowSizeClass.isMedium -> customSpacing.custom150
-        windowSizeClass.isExpanded -> customSpacing.custom150
+        windowSizeClass.isMedium -> customSpacing.custom140
+        windowSizeClass.isExpanded -> customSpacing.custom140
         else -> customSpacing.custom130
     }
 
@@ -247,16 +247,16 @@ fun ProvideAppConstants(
     // Content horizontal padding - horizontal spacing for main content
     val contentPadding = when {
         windowSizeClass.isCompact -> customSpacing.custom16
-        windowSizeClass.isMedium -> customSpacing.custom40
-        windowSizeClass.isExpanded -> customSpacing.custom200
+        windowSizeClass.isMedium -> customSpacing.custom20
+        windowSizeClass.isExpanded -> customSpacing.custom50
         else -> customSpacing.custom16
     }
 
     // top bar and bottom bar horizontal padding - horizontal spacing for top bar and bottom bar content
     val appBarPadding = when {
         windowSizeClass.isCompact -> customSpacing.custom0
-        windowSizeClass.isMedium -> customSpacing.custom2
-        windowSizeClass.isExpanded -> customSpacing.custom4
+        windowSizeClass.isMedium -> customSpacing.custom20
+        windowSizeClass.isExpanded -> customSpacing.custom50
         else -> customSpacing.custom0
     }
 

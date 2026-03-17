@@ -28,6 +28,7 @@ import coil3.compose.AsyncImagePainter
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import coil3.size.Size
 import com.example.myapp.ui.theme.LocalWindowSizeConstant
 import com.example.myapp.ui.theme.customSpacing
 import com.example.myapp.view.utils.CustomShape
@@ -99,14 +100,13 @@ fun CustomImageContainer(
             ImageRequest.Builder(context)
                 .data(it)
                 .crossfade(crossFade)
+                .size(Size.ORIGINAL)
                 .build()
         }
     }
 
     Box(
-        modifier = modifier.then(
-            Modifier.fillMaxSize()
-        ),
+        modifier = modifier.then(Modifier.fillMaxSize()),
         contentAlignment = Alignment.Center,
     ) {
         if (imageRequest != null) {

@@ -25,7 +25,7 @@ class CloudinaryHelper @Inject constructor() {
      * Generate optimized image URL for display
      */
     fun getImageUrl(
-        publicId: String,
+        publicId: String? = null,
         width: Int? = null,
         height: Int? = null,
         crop: String = "fill",

@@ -95,6 +95,7 @@ import com.example.myapp.view.components.custom.buttons.CustomOutlinedButton
 import com.example.myapp.view.screens.product.product_rating_and_reviews.ProductRating
 import com.example.myapp.view.screens.product.product_rating_and_reviews.ProductRatingDialog
 import com.example.myapp.view.utils.ButtonIcon
+import com.example.myapp.view.utils.CloudinaryHelper
 import com.example.myapp.view.utils.CustomShape
 import com.example.myapp.view.utils.calculateDiscountedPrice
 import com.example.myapp.view.utils.formatPrice
@@ -145,6 +146,7 @@ fun ProductDescriptionScreen(
     onSignInClick: () -> Unit,
     onViewReviews: (ProductItem) -> Unit,
     onRelatedProductClick: (ProductItem) -> Unit,
+    cloudinaryHelper: CloudinaryHelper = CloudinaryHelper(),
     networkManager: NetworkManager = hiltViewModel<NetworkViewModel>().networkManager
 ) {
 
@@ -408,17 +410,16 @@ fun ProductDescriptionScreen(
                                             contentAlignment = Alignment.TopStart
                                         ) {
                                             val allImages =
-                                                listOfNotNull(product?.imageUrl) + (product?.supportingImageUrls
-                                                    ?: emptyList())
+                                                listOfNotNull(product?.imageUrl) + (product?.supportingImageUrls ?: emptyList())
 
                                             CustomImageContainer(
-                                                data = allImages.getOrNull(selectedImageIndex)
-                                                    ?: "",
+                                                data = cloudinaryHelper.getImageUrl(allImages.getOrNull(selectedImageIndex)),
                                                 shape = CustomShape.mediumShape(),
                                                 contentDescription = "product image",
                                                 imageLoader = imageLoader
                                             )
                                         }
+
                                         // Discount Badge - only show if there's actually a discount
                                         product?.let { prod ->
                                             val hasDiscount =
@@ -466,12 +467,11 @@ fun ProductDescriptionScreen(
                     //  Small image gallery for product image selection
                     item {
                         SmallProductImages(
-                            productImages = allImages,
+                            productImages = listOf(cloudinaryHelper.getImageUrl(allImages.getOrNull(selectedImageIndex))),
                             selectedIndex = selectedImageIndex,
                             imageLoader = imageLoader,
                             onImageSelected = { index -> selectedImageIndex = index }
                         )
-
                     }
 
                     // Product information section

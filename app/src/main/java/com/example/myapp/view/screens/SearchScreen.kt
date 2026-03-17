@@ -85,6 +85,7 @@ import com.example.myapp.view.screens.product.ProductSection
 import com.example.myapp.view.screens.product_search.PhotoSearchButton
 import com.example.myapp.view.screens.product_search.VoiceSearchButton
 import com.example.myapp.view.utils.ButtonIcon
+import com.example.myapp.view.utils.CustomShape
 
 /**
  * SearchScreen - Composable for the product search experience.
@@ -290,11 +291,11 @@ fun SearchScreen(
                     }
                 )
             } else {
+                CustomSpacer()
                 // Show Recent Searches, Popular Searches, and Featured/Trending Products
                 CustomLazyColumn {
                     if (recentSearches.isNotEmpty()) {
                         item {
-                            CustomSpacer()
                             PaddedSection(content = {
                                 RecentSearchesSection(
                                     recentSearches = recentSearches,
@@ -326,7 +327,6 @@ fun SearchScreen(
                                 popularSearches = popularSearches,
                             )
                             CustomHorizontalDivider()
-
                         })
                     }
 
@@ -386,7 +386,7 @@ fun ClickableSearchBar(
 
     Box(
         modifier = windowSizeConstant.adaptiveWidthModifier
-            .clip(MaterialTheme.shapes.medium)
+            .clip(CustomShape.mediumShape())
             .height(windowSizeConstant.adaptiveHeight)
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .clickable { onClick() }
@@ -477,7 +477,7 @@ fun RecentSearchesSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(MaterialTheme.shapes.medium)
+            .clip(CustomShape.mediumShape())
             .background(MaterialTheme.colorScheme.surfaceContainer)
     ) {
 
@@ -566,6 +566,7 @@ fun RecentSearchItem(
  * @param recentSearches List of all recent searches to filter from
  * @param onSuggestionClick Callback when a suggestion is clicked
  */
+
 @Composable
 fun SearchSuggestions(
     query: String,
