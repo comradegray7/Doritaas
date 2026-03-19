@@ -71,7 +71,6 @@ interface FavoritesRepository {
  *
  */
 
-
 /**
  * FirebaseFavoritesRepository
  *

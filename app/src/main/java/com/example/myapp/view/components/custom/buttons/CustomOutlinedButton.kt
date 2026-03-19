@@ -89,6 +89,7 @@ fun CustomOutlinedButton(
                     is ButtonIcon.None -> {}
 
                 }
+
                 CustomSpacer(modifier = Modifier.width(windowSizeConstant.normalVerticalPadding))
             }
 

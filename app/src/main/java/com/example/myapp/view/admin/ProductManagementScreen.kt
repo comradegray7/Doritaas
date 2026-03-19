@@ -41,6 +41,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import com.example.myapp.NetworkIndicator
 import com.example.myapp.NetworkManager
 import com.example.myapp.NetworkStatusBanner
@@ -193,6 +196,14 @@ fun ProductManagementScreen(
                 )
                 showSnackBar = false
             }
+        }
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            viewModel.loadProducts()
         }
     }
 

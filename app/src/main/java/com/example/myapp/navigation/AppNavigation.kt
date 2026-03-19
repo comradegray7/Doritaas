@@ -103,7 +103,6 @@ import com.example.myapp.view.screens.product.promotions.PromotionsScreen
 
 @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3WindowSizeClassApi::class)
-
 @Composable
 fun AppNavigationGraph(
     modifier: Modifier = Modifier,
@@ -867,7 +866,7 @@ fun AppNavigationGraph(
                     AdminGuard(
                         onUnauthorized = {
                             // Navigate to a non-admin route instead
-                            navController.navigate(AppRoutes.SHOP) {
+                            navController.navigate(AppRoutes.ADMIN_DASHBOARD) {
                                 // Clear the back stack up to and including admin dashboard
                                 popUpTo(navController.graph.startDestinationId) { inclusive = true }
                             }
@@ -899,7 +898,7 @@ fun AppNavigationGraph(
                 ) {
                     AdminGuard(
                         onUnauthorized = {
-                            navController.navigate(AppRoutes.SHOP) {
+                            navController.navigate(AppRoutes.ADMIN_DASHBOARD) {
                                 popUpTo(navController.graph.startDestinationId) { inclusive = true }
                             }
                         }
@@ -919,7 +918,7 @@ fun AppNavigationGraph(
                 ) {
                     AdminGuard(
                         onUnauthorized = {
-                            navController.navigate(AppRoutes.SHOP) {
+                            navController.navigate(AppRoutes.ADMIN_DASHBOARD) {
                                 popUpTo(navController.graph.startDestinationId) { inclusive = true }
                             }
                         }
@@ -951,7 +950,7 @@ fun AppNavigationGraph(
 
                     GuestGuard(
                         onAuthenticated = {
-                            navController.navigate(AppRoutes.SHOP) {
+                            navController.navigate(AppRoutes.ADMIN_DASHBOARD) {
                                 popUpTo(navController.graph.startDestinationId) { inclusive = true }
                             }
                         }
@@ -1003,7 +1002,7 @@ fun AppNavigationGraph(
                 ) {
                     AdminGuard(
                         onUnauthorized = {
-                            navController.navigate(AppRoutes.SHOP) {
+                            navController.navigate(AppRoutes.ADMIN_DASHBOARD) {
                                 popUpTo(navController.graph.startDestinationId) { inclusive = true }
                             }
                         }
@@ -1049,7 +1048,7 @@ fun AppNavigationGraph(
                 ) {
                     AdminGuard(
                         onUnauthorized = {
-                            navController.navigate(AppRoutes.SHOP) {
+                            navController.navigate(AppRoutes.ADMIN_DASHBOARD) {
                                 popUpTo(navController.graph.startDestinationId) { inclusive = true }
                             }
                         }
@@ -1069,7 +1068,7 @@ fun AppNavigationGraph(
                 ) {
                     AdminGuard(
                         onUnauthorized = {
-                            navController.navigate(AppRoutes.SHOP) {
+                            navController.navigate(AppRoutes.ADMIN_DASHBOARD) {
                                 popUpTo(navController.graph.startDestinationId) { inclusive = true }
                             }
                         }
@@ -1093,7 +1092,7 @@ fun AppNavigationGraph(
                 ) {
                     AdminGuard(
                         onUnauthorized = {
-                            navController.navigate(AppRoutes.SHOP) {
+                            navController.navigate(AppRoutes.ADMIN_DASHBOARD) {
                                 popUpTo(navController.graph.startDestinationId) { inclusive = true }
                             }
                         }
@@ -1115,7 +1114,7 @@ fun AppNavigationGraph(
 
                     AdminGuard(
                         onUnauthorized = {
-                            navController.navigate(AppRoutes.SHOP) {
+                            navController.navigate(AppRoutes.ADMIN_DASHBOARD) {
                                 popUpTo(navController.graph.startDestinationId) {
                                     inclusive = false
                                 }
@@ -1125,8 +1124,13 @@ fun AppNavigationGraph(
                     ) {
                         EditProductScreen(
                             productId = productId,
-                            onProductUpdated = { navController.popBackStack() },
-                            onNavigateBack = { navController.popBackStack() }
+                            onNavigateBack = {
+                                // Pop back to the existing ProductManagement instance
+                                navController.popBackStack(
+                                    route = AppRoutes.PRODUCT_DASHBOARD,
+                                    inclusive = false
+                                )
+                            }
                         )
                     }
                 }
@@ -1140,7 +1144,7 @@ fun AppNavigationGraph(
                 ) {
                     AdminGuard(
                         onUnauthorized = {
-                            navController.navigate(AppRoutes.SHOP) {
+                            navController.navigate(AppRoutes.ADMIN_DASHBOARD) {
                                 popUpTo(navController.graph.startDestinationId) {
                                     inclusive = false
                                 }
@@ -1149,8 +1153,13 @@ fun AppNavigationGraph(
                         }
                     ) {
                         AddProductScreen(
-                            onProductAdded = { navController.popBackStack() },
-                            onNavigateBack = { navController.popBackStack() }
+                            onNavigateBack = {
+                                // Pop back to the existing ProductManagement instance
+                                navController.popBackStack(
+                                    route = AppRoutes.PRODUCT_DASHBOARD,
+                                    inclusive = false
+                                )
+                            }
                         )
                     }
                 }
@@ -1164,7 +1173,7 @@ fun AppNavigationGraph(
                 ) {
                     AdminGuard(
                         onUnauthorized = {
-                            navController.navigate(AppRoutes.SHOP) {
+                            navController.navigate(AppRoutes.ADMIN_DASHBOARD) {
                                 popUpTo(navController.graph.startDestinationId) {
                                     inclusive = false
                                 }
@@ -1187,7 +1196,7 @@ fun AppNavigationGraph(
                 ) {
                     AdminGuard(
                         onUnauthorized = {
-                            navController.navigate(AppRoutes.SHOP) {
+                            navController.navigate(AppRoutes.ADMIN_DASHBOARD) {
                                 popUpTo(navController.graph.startDestinationId) {
                                     inclusive = false
                                 }
@@ -1210,7 +1219,7 @@ fun AppNavigationGraph(
                 ) {
                     AdminGuard(
                         onUnauthorized = {
-                            navController.navigate(AppRoutes.SHOP) {
+                            navController.navigate(AppRoutes.ADMIN_DASHBOARD) {
                                 popUpTo(navController.graph.startDestinationId) {
                                     inclusive = false
                                 }

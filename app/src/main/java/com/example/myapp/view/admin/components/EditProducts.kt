@@ -165,7 +165,6 @@ import java.util.UUID
  * @param brandViewModel ViewModel providing available brands
  * @param sizeViewModel ViewModel providing available sizes
  * @param onNavigateBack Callback invoked when user cancels or navigates back
- * @param onProductUpdated Callback invoked after successful product update
  *
  * @see ProductCrudViewModel for product update logic
  * @see AddProductScreen for similar form structure
@@ -181,7 +180,6 @@ fun EditProductScreen(
     sizeViewModel: SizeViewModel = hiltViewModel(),
     tagViewModel: TagViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit = {},
-    onProductUpdated: () -> Unit = {},
     cloudinaryHelper: CloudinaryHelper = CloudinaryHelper(),
     networkManager: NetworkManager = hiltViewModel<NetworkViewModel>().networkManager
 ) {
@@ -284,7 +282,7 @@ fun EditProductScreen(
         }
     }
 
-    //   Main image picker launcher
+    //  Main image picker launcher
     val mainImagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
@@ -337,9 +335,8 @@ fun EditProductScreen(
 
     LaunchedEffect(productState.isSuccess) {
         if (productState.isSuccess) {
-            viewModel.resetSuccessState()
-            delay(100)
-            onProductUpdated()
+            onNavigateBack()              // ✅ Navigate first
+            viewModel.resetSuccessState() // ✅ Then reset (won't cancel navigation)
         }
     }
 

@@ -118,7 +118,7 @@ fun CartScreen(
     onRelatedProductClick: (ProductItem) -> Unit,
     primeViewModel: PrimeMembershipViewModel = hiltViewModel(),
     onSignInClick: () -> Unit,
-    networkManager: NetworkManager = hiltViewModel<NetworkViewModel>().networkManager
+    networkManager: NetworkManager = hiltViewModel<NetworkViewModel>().networkManager,
 ) {
     val windowSizeClass = LocalWindowSizeConstant.current
     val cartState by cartViewModel.cartState.collectAsState()
@@ -390,6 +390,9 @@ fun CartScreen(
                         items(cartState.cartItems, key = { it.id }) { product ->
                             val isFavorite by favoriteViewModel.getFavoriteStatus(product.id)
                                 .collectAsState(initial = product.isFavorite)
+
+                            Log.d("CartImage", "Image URL: ${product.imageUrl}")
+
                             PaddedSection(content = {
                                 CartItemCard(
                                     isFavorite = isFavorite,

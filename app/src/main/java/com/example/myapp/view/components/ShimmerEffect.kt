@@ -396,7 +396,7 @@ fun CustomBottomSectionShimmer(
         // Shimmer for the Action Button
         Box(modifier = Modifier
                 .fillMaxWidth()
-                .height(windowSizeClass.customButtonPadding) // Match your theme's button height
+                .height(windowSizeClass.adaptiveHeight) // Match your theme's button height
                 .clip(CustomShape.extraLargeShape()) // Match your theme's radius
                 .shimmerEffect()
         )

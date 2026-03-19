@@ -190,7 +190,6 @@ import java.util.UUID
  * @param brandViewModel ViewModel providing available brands
  * @param sizeViewModel ViewModel providing available sizes
  * @param onNavigateBack Callback invoked when user cancels or navigates back
- * @param onProductAdded Callback invoked after successful product creation
  *
  * @see ProductCrudViewModel for product creation logic
  * @see isValidUrl for URL validation logic
@@ -204,7 +203,6 @@ fun AddProductScreen(
     sizeViewModel: SizeViewModel = hiltViewModel(),
     tagViewModel: TagViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit = {},
-    onProductAdded: () -> Unit = {},
     cloudinaryHelper: CloudinaryHelper = CloudinaryHelper(),
     networkManager: NetworkManager = hiltViewModel<NetworkViewModel>().networkManager
 ) {
@@ -287,9 +285,8 @@ fun AddProductScreen(
 
     LaunchedEffect(productState.isSuccess) {
         if (productState.isSuccess) {
-            viewModel.resetSuccessState()
-            delay(100)
-            onProductAdded()
+            onNavigateBack()              // ✅ Navigate first
+            viewModel.resetSuccessState() // ✅ Then reset (won't cancel navigation)
         }
     }
 
@@ -1597,7 +1594,6 @@ fun HierarchicalCategoryDialog(
         }
     )
 }
-
 
 /**
  * SelectableCategoryTreeItem - Individual node in the category hierarchy tree
