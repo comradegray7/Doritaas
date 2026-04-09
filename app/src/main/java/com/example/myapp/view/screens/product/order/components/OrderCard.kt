@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
@@ -16,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import com.example.myapp.data.dataclass.Order
 import com.example.myapp.ui.theme.LocalWindowSizeConstant
+import com.example.myapp.ui.theme.customSpacing
 import com.example.myapp.view.admin.formatToString
 import com.example.myapp.view.components.CustomSpacer
 import com.example.myapp.view.utils.formatPrice
@@ -77,6 +79,7 @@ fun OrderCard(
                         fontWeight = FontWeight.Bold
                     )
 
+                    CustomSpacer(modifier = Modifier.height(customSpacing.custom4))
                     Text(
                         text = "Placed on ${order.createdAt?.toDate()?.formatToString() ?: "N/A"}",
                         style = windowSizeClass.labelTextStyle,
@@ -88,6 +91,14 @@ fun OrderCard(
                 OrderStatusChip(status = order.status)
             }
 
+            CustomSpacer(modifier = Modifier.height(customSpacing.custom4))
+            Text(
+                text = "User: ${order.userId.take(8)}",
+                style = windowSizeClass.labelTextStyle,
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
             CustomSpacer()
 
             // Order Details
@@ -96,11 +107,25 @@ fun OrderCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
+                    // Compact item summary: show first item name truncated and " +N more" when applicable
+                    val firstItemName = order.items.firstOrNull()?.productName ?: ""
+                    val itemSummary = if (firstItemName.isNotBlank()) {
+                        if (order.items.size > 1) {
+                            val truncated = if (firstItemName.length > 30) firstItemName.take(27) + "..." else firstItemName
+                            "$truncated +${order.items.size - 1}"
+                        } else {
+                            firstItemName
+                        }
+                    } else {
+                        "${order.items.size} items"
+                    }
+
                     Text(
-                        text = "${order.items.size} items",
+                        text = itemSummary,
                         overflow = TextOverflow.Ellipsis,
                         style = windowSizeClass.bodyTextStyle,
                     )
+                    CustomSpacer(modifier = Modifier.height(customSpacing.custom4))
 
                     Text(
                         text = "Total: ${formatPrice(order.totalAmount)}",
@@ -109,13 +134,6 @@ fun OrderCard(
                         fontWeight = FontWeight.Medium
                     )
                 }
-
-                Text(
-                    text = "User: ${order.userId.take(8)}",
-                    style = windowSizeClass.labelTextStyle,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
 
             CustomSpacer()

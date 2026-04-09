@@ -156,7 +156,6 @@ fun OrderManagementScreen(
     }
 
     LaunchedEffect(Unit) {
-        // Initial load with default status ("all")
         viewModel.loadOrdersByStatus("all")
     }
 
@@ -179,20 +178,14 @@ fun OrderManagementScreen(
         verticalArrangement = Arrangement.Top,
         onNavigateBack = { onNavigateBack() },
         content = {
-            // Network Status Banner
             if (!networkState.hasInternet) {
-
                 CustomSpacer()
-
                 PaddedSection(
                     alignment = Alignment.CenterHorizontally,
                     content = {
-                        NetworkStatusBanner(
-                            networkState = networkState,
-                        )
+                        NetworkStatusBanner(networkState = networkState)
                     }
                 )
-
                 CustomSpacer()
             }
 
@@ -215,21 +208,20 @@ fun OrderManagementScreen(
                 )
             }
 
-            // Single condition check structure
             PaddedSection(
                 alignment = Alignment.CenterHorizontally,
                 content = {
-                    // Search Bar
                     CustomSpacer()
                     CustomSearchBar(
                         query = searchQuery,
                         onQueryChange = { newQuery ->
                             searchQuery = newQuery
-                            // Optional: Add debounce for real-time search
                             if (newQuery.isNotEmpty()) {
                                 viewModel.searchOrders(newQuery)
                             } else {
-                                viewModel.loadOrders() // Load all when empty
+
+                                // active status filter is preserved when the search query is cleared.
+                                viewModel.refreshCurrentView()
                             }
                         },
                         onSearch = { query ->
@@ -256,7 +248,8 @@ fun OrderManagementScreen(
                                     buttonIcon = ButtonIcon.Vector(Icons.Filled.Search),
                                     onClick = {
                                         searchQuery = ""
-                                        viewModel.loadOrders()
+                                        // FIX: Same as above — preserve the active filter on clear.
+                                        viewModel.refreshCurrentView()
                                     },
                                     contentDescription = "Search"
                                 )
@@ -267,34 +260,33 @@ fun OrderManagementScreen(
 
                     when {
                         orderState.isLoading -> {
-                            // Loading State
                             CustomListCardShimmer()
                         }
 
                         orderState.error != null -> {
                             CustomEmptyState(
                                 btnLabel = R.string.retry,
-                                title = R.string.orders_error, // Fixed your 'color_error' typo too
+                                title = R.string.orders_error,
                                 onBtnClick = { viewModel.loadOrders() },
                                 btnIcon = Icons.Filled.Error,
                             )
                         }
 
                         orderState.orders.isEmpty() -> {
-                            // Empty State
                             CustomEmptyState(
-                                titleStr = if (searchQuery.isEmpty()) "Complete a purchase and view your orders here" else "No results found",
+                                titleStr = when {
+                                    searchQuery.isNotEmpty() -> "No results found"
+                                    orderState.selectedStatus != "all" -> "No orders found for \"${orderState.selectedStatus.replaceFirstChar { it.uppercase() }}\""
+                                    else -> "Complete a purchase and view your orders here"
+                                },
                                 showBtn = false,
                                 leadingIcon = Icons.Filled.SearchOff
                             )
                         }
 
                         else -> {
-                            // Orders List
                             CustomLazyColumn {
-
                                 item {
-                                    // Filter Button
                                     HeadlineWidget(
                                         leadingText = R.string.filter_orders,
                                         trailing = {
@@ -325,7 +317,6 @@ fun OrderManagementScreen(
                                             showOrderDetailsDialog = true
                                         },
                                         actions = {
-                                            // Action Buttons
                                             Row {
                                                 ButtonIconComposable(
                                                     showBgColor = false,
@@ -358,7 +349,8 @@ fun OrderManagementScreen(
                             }
                         }
                     }
-                })
+                }
+            )
 
             if (showOrderDetailsDialog) {
                 selectedOrder?.let {
@@ -366,12 +358,12 @@ fun OrderManagementScreen(
                         order = it,
                         onDismiss = {
                             showOrderDetailsDialog = false
-                            selectedOrder = null  // Clear selection on dismiss
+                            selectedOrder = null
                         }
                     )
                 }
             }
-            // Status Dialog
+
             if (showStatusDialog) {
                 OrderStatusDialog(
                     currentOrder = selectedOrder,
@@ -392,7 +384,6 @@ fun OrderManagementScreen(
                 )
             }
 
-            // Delete Dialog
             if (showDeleteDialog && selectedOrder != null) {
                 DeleteOrderDialog(
                     order = selectedOrder!!,
@@ -427,12 +418,6 @@ fun OrderManagementScreen(
  * DeleteOrderDialog - Order deletion confirmation dialog
  *
  * Displays a warning dialog to confirm order deletion, preventing accidental removals.
- *
- * ## Features
- * - Warning icon to indicate destructive action
- * - Order ID displayed for confirmation
- * - Warning about irreversibility
- * - Confirm and cancel buttons
  *
  * @param order The order to be deleted
  * @param onDismiss Callback when dialog is dismissed without deleting

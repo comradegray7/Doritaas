@@ -192,9 +192,6 @@ private fun ScaffoldContainer(
         topBar = {
             if (showTopBar) {
                 TopAppBar(
-                    modifier = Modifier.padding(
-                        horizontal = windowSizeConstant.appBarPadding // Adaptive horizontal padding
-                    ),
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.background
                     ), // Use background color)

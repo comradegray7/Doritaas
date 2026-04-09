@@ -55,7 +55,7 @@ fun OrderStatusDialog(
 ) {
     val windowSizeClass = LocalWindowSizeConstant.current
 
-    val statusOptions = listOf("pending", "processing", "shipped", "delivered", "cancelled")
+    val statusOptions = listOf("pending", "confirmed", "processing", "shipped", "delivered", "cancelled")
 
     CustomAlertDialog(
         onDismissRequest = onDismiss,
@@ -98,7 +98,7 @@ fun OrderStatusDialog(
             CustomTextButton(
                 onClick = onDismiss,
                 label = R.string.edit_order,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onPrimary
             )
         }
     )
@@ -126,6 +126,7 @@ fun OrderStatusChip(modifier: Modifier = Modifier, status: String) {
 
     val (backgroundColor, textColor) = when (status.lowercase()) {
         "pending" -> Color(0xFFFFF3E0) to Color(0xFFF57C00)
+        "confirmed" -> Color(0xFFE8F5E8) to Color(0xFF388E3C)
         "processing" -> Color(0xFFE3F2FD) to Color(0xFF1976D2)
         "shipped" -> Color(0xFFE8F5E8) to Color(0xFF388E3C)
         "delivered" -> Color(0xFFE8F5E8) to Color(0xFF388E3C)
@@ -149,5 +150,3 @@ fun OrderStatusChip(modifier: Modifier = Modifier, status: String) {
         )
     }
 }
-
-

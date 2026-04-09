@@ -17,8 +17,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.DpSize
 import com.example.myapp.R
 import com.example.myapp.data.dataclass.CarouselItem
 import com.example.myapp.ui.theme.LocalWindowSizeConstant
@@ -108,7 +108,8 @@ fun ProductCarousel(
                     data = cloudinaryHelper.getImageUrl(carousel.imageUrl), // Using imageUrl from Firestore
                     shape = CustomShape.mediumShape(),
                     clipToBounds = false,
-                    size = DpSize(height = windowSizeConstant.carouselImageHeight, width = windowSizeConstant.carouselImageWidth),
+                    contentScale = ContentScale.Fit,
+//                    size = DpSize(height = windowSizeConstant.carouselImageHeight, width = windowSizeConstant.carouselImageWidth),
                     contentDescription = "Carousel Image",
                     modifier = Modifier.clickable(onClick = { onCarouselClick()}))
             }

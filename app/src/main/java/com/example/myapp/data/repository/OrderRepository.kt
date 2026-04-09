@@ -259,9 +259,11 @@ class OrderRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getOrdersByStatus(status: String): Result<List<Order>> {
+        // Normalize input
+        val queryStatus = status.trim()
         return try {
             val snapshot = ordersCollection
-                .whereEqualTo("status", status)
+                .whereEqualTo("status", queryStatus)
                 .orderBy("createdAt", Query.Direction.DESCENDING)
                 .get()
                 .await()
@@ -269,10 +271,52 @@ class OrderRepositoryImpl @Inject constructor(
             val orders = snapshot.documents.mapNotNull { doc ->
                 doc.toObject<Order>()?.copy(id = doc.id)
             }
-            Result.success(orders)
+
+            // If Firestore query returned results, return them immediately
+            if (orders.isNotEmpty()) {
+                return Result.success(orders)
+            }
+
+            // If no results found with exact match, fall back to client-side filtering
+            Log.w(TAG, "No orders returned for status='$queryStatus' from Firestore, falling back to client-side filtering")
+            val allSnapshot = ordersCollection
+                .orderBy("createdAt", Query.Direction.DESCENDING)
+                .get()
+                .await()
+
+            val allOrders = allSnapshot.documents.mapNotNull { doc ->
+                doc.toObject<Order>()?.copy(id = doc.id)
+            }
+
+            val filtered = allOrders.filter { order ->
+                order.status.equals(queryStatus, ignoreCase = true)
+            }
+
+            Result.success(filtered)
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching orders by status: ${e.message}", e)
-            Result.failure(e)
+            // Fallback: if Firestore query fails (often due to missing composite index),
+            // fetch all orders and filter client-side to avoid breaking the UI.
+            return try {
+                Log.w(TAG, "Falling back to client-side filtering for status=$status")
+                val allSnapshot = ordersCollection
+                    .orderBy("createdAt", Query.Direction.DESCENDING)
+                    .get()
+                    .await()
+
+                val allOrders = allSnapshot.documents.mapNotNull { doc ->
+                    doc.toObject<Order>()?.copy(id = doc.id)
+                }
+
+                val filtered = allOrders.filter { order ->
+                    order.status.equals(status, ignoreCase = true)
+                }
+
+                Result.success(filtered)
+            } catch (fallbackEx: Exception) {
+                Log.e(TAG, "Fallback filtering also failed: ${fallbackEx.message}", fallbackEx)
+                Result.failure(fallbackEx)
+            }
         }
     }
 

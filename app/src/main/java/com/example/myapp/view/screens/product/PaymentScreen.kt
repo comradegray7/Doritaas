@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -188,7 +187,6 @@ fun PaymentScreen(
     cloudinaryHelper: CloudinaryHelper = CloudinaryHelper(),
     networkManager: NetworkManager = hiltViewModel<NetworkViewModel>().networkManager
 ) {
-
 
     val sheetConfig by viewModel.sheetConfig.collectAsState()
     val paymentState by viewModel.paymentState.collectAsState()
@@ -460,8 +458,8 @@ fun PaymentScreen(
                                                 Card(
                                                     modifier = Modifier
                                                         .width(customSpacing.custom180)
-                                                        .fillMaxHeight()
-                                                        .clickable { selectedItemIndex = index },
+                                                        .height(windowSizeConstant.customImageHeight + windowSizeConstant.baseVerticalPadding * 4)
+                                                     .clickable { selectedItemIndex = index },
                                                     colors = CardDefaults.cardColors(
                                                         containerColor = if (isSelected)
                                                             MaterialTheme.colorScheme.primaryContainer
@@ -481,13 +479,14 @@ fun PaymentScreen(
                                                             .padding(windowSizeConstant.normalVerticalPadding),
                                                         horizontalAlignment = Alignment.CenterHorizontally
                                                     ) {
+                                                        // Constrain image to a square area to preserve aspect ratio
                                                         CustomImageContainer(
                                                             data = cloudinaryHelper.getImageUrl(item.imageUrl),
                                                             contentDescription = item.productName,
-                                                            modifier = windowSizeConstant.productImageSize.then(
-                                                                Modifier
-                                                                    .clip(CustomShape.mediumShape())
-                                                            )
+                                                            modifier = Modifier
+                                                                .height(windowSizeConstant.customImageHeight)
+                                                                .width(customSpacing.custom120)
+                                                                .clip(CustomShape.mediumShape())
                                                         )
 
                                                         CustomSpacer(
@@ -508,7 +507,6 @@ fun PaymentScreen(
                                                 }
                                             }
                                         }
-
                                     }
 
                                     // Selected Product Details
