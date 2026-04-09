@@ -109,7 +109,6 @@ fun ProductCarousel(
                     shape = CustomShape.mediumShape(),
                     clipToBounds = false,
                     contentScale = ContentScale.Fit,
-//                    size = DpSize(height = windowSizeConstant.carouselImageHeight, width = windowSizeConstant.carouselImageWidth),
                     contentDescription = "Carousel Image",
                     modifier = Modifier.clickable(onClick = { onCarouselClick()}))
             }
