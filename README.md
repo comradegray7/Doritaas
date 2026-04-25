@@ -1,6 +1,6 @@
 ## Doritaas App
 
-Doritaas is a modern e‑commerce Android application built with Jetpack Compose.  
+Doritaas is a modern e‑commerce Android application built with Jetpack Compose and Stripe payment Api.  
 It provides a full shopping experience for customers (browse, search, cart, checkout, orders, Prime‑style membership) plus an integrated admin dashboard for managing products, categories, promotions, shipments, and more.
 
 ---
