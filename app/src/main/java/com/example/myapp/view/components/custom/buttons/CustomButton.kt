@@ -75,7 +75,7 @@ fun CustomButton(
     isLoading: Boolean = false,
     useStringResourceLabel: Boolean = (label != 0 && strLabel.isBlank()), // Derived: true if label is valid and strLabel is not
     useDirectStringLabel: Boolean = strLabel.isNotBlank(),
-    buttonColors: ButtonColors = ButtonDefaults.buttonColors(),
+    buttonColors: ButtonColors? = null,
     shape: Shape = CustomShape.mediumShape()
 ) {
 
@@ -83,7 +83,12 @@ fun CustomButton(
     val windowSizeConstant = LocalWindowSizeConstant.current
 
     Button(
-        colors = buttonColors, // Use default Material Design 3 button colors
+        colors = buttonColors ?: ButtonDefaults.buttonColors (
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+            disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+        ),
         enabled = enabled,
         onClick = onClick,
         shape = shape, // Use medium corner radius

@@ -76,7 +76,6 @@ data class ProductItem(
     val originalShippingCost: Double = 0.0, // Original shipping before Prime benefits
     val tags: List<String> = emptyList(), // Include "prime_eligible" tag
     val topReviews: List<Review> = emptyList(),
-
     val activePromotions: List<PromotionInfo> = emptyList(), // Fetched on demand
     val bestPromotionDiscount: Double = 0.0, // Calculated from activePromotions
     val promotionalPrice: Double = price // price - bestPromotionDiscount

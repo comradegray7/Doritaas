@@ -78,6 +78,8 @@ import com.example.myapp.view.components.custom.buttons.CustomOutlinedButton
 import com.example.myapp.view.components.custom.buttons.CustomTextButton
 import com.example.myapp.view.utils.ButtonIcon
 import com.example.myapp.view.utils.CustomShape
+import com.joelkanyi.jcomposecountrycodepicker.component.KomposeCountryCodePicker
+import com.joelkanyi.jcomposecountrycodepicker.component.rememberKomposeCountryCodePickerState
 import kotlinx.coroutines.delay
 
 /**
@@ -357,6 +359,12 @@ fun AddAddressDialog(
     val windowSizeClass = LocalWindowSizeConstant.current
 
     var fullName by remember { mutableStateOf("") }
+
+    // ---- Country code picker state ----
+    val phonePickerState = rememberKomposeCountryCodePickerState(
+        showCountryCode = true,
+        showCountryFlag = true,
+    )
     var phoneNumber by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var addressLine1 by remember { mutableStateOf("") }
@@ -393,14 +401,16 @@ fun AddAddressDialog(
      * validatePhone
      *
      */
-    fun validatePhone() {
-        phoneError = when {
-            phoneNumber.isBlank() -> "Phone number is required"
-            phoneNumber.length < 10 -> "Enter a valid phone number"
-            else -> ""
+    fun validatePhone(): Boolean {
+        // Delegate to the library's own validator — it checks country-specific rules
+        return if (!phonePickerState.isPhoneNumberValid()) {
+            phoneError = "Please enter a valid phone number"
+            false
+        } else {
+            phoneError = ""
+            true
         }
     }
-
     /**
      * validateEmail
      *
@@ -551,6 +561,14 @@ fun AddAddressDialog(
                 onValueChange = {
                     phoneNumber = it
                     if (phoneError.isNotEmpty()) validatePhone()
+                },
+                leadingIcon = {
+                    KomposeCountryCodePicker(
+                        modifier = Modifier,
+                        showOnlyCountryCodePicker = true,
+                        text = phoneNumber,
+                        state = phonePickerState,
+                    )
                 },
                 isError = phoneError.isNotEmpty(),
                 errorMessage = phoneError,

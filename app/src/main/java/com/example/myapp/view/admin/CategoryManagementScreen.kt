@@ -98,6 +98,392 @@ import kotlinx.coroutines.delay
  * @param onNavigateBack Callback to return to the previous screen
  * @param networkManager Manager to monitor connectivity status
  */
+//@Composable
+//fun CategoryManagementScreen(
+//    viewModel: CategoryViewModel = hiltViewModel(),
+//    onNavigateBack: () -> Unit = {},
+//    networkManager: NetworkManager = hiltViewModel<NetworkViewModel>().networkManager
+//) {
+//    val categoryState by viewModel.categoryState.collectAsState()
+//    val snackBarHostState = remember { SnackbarHostState() }
+//    val windowSizeClass = LocalWindowSizeConstant.current
+//
+//    var showAddDialog by remember { mutableStateOf(false) }
+//    var showEditDialog by remember { mutableStateOf(false) }
+//    var showDeleteDialog by remember { mutableStateOf(false) }
+//    var selectedCategory by remember { mutableStateOf<CategoryItem?>(null) }
+//    var selectedParentForAdd by remember { mutableStateOf<CategoryItem?>(null) }
+//    var searchQuery by remember { mutableStateOf("") }
+//    var viewMode by remember { mutableStateOf(ViewMode.TREE) } // TREE or LIST
+//
+//    var currentSnackBarData by remember { mutableStateOf<SnackBarData?>(null) }
+//    var showSnackBar by remember { mutableStateOf(false) }
+//    val networkState = rememberNetworkState(networkManager)
+//
+//    LaunchedEffect(Unit) {
+//        viewModel.loadCategoryTree()
+//        viewModel.loadCategories()
+//    }
+//
+//    LaunchedEffect(Unit) {
+//        viewModel.snackBarData.collect { snackBarData ->
+//            currentSnackBarData = snackBarData
+//            showSnackBar = true
+//
+//            if (snackBarData.duration != SnackbarDuration.Indefinite) {
+//                delay(
+//                    when (snackBarData.duration) {
+//                        SnackbarDuration.Short -> 3000L
+//                        SnackbarDuration.Long -> 5000L
+//                        else -> 3000L
+//                    }
+//                )
+//                showSnackBar = false
+//            }
+//        }
+//    }
+//
+//    CustomScaffoldContainer(
+//        onRefresh = {
+//            if (networkState.hasInternet) {
+//                viewModel.loadCategories()
+//                viewModel.loadCategoryTree()
+//            } else {
+//                currentSnackBarData = SnackBarData(
+//                    message = "Cannot refresh - No internet connection",
+//                    isError = true,
+//                    duration = SnackbarDuration.Short
+//                )
+//                showSnackBar = true
+//            }
+//        },
+//        title = R.string.manage_categories,
+//        snackBarHostState = snackBarHostState,
+//        showBottomBar = false,
+//        verticalArrangement = Arrangement.Top,
+//        onNavigateBack = { onNavigateBack() },
+//        floatingBtnContent = {
+//            CustomFloatingPointButton(
+//                onClick = {
+//                    selectedParentForAdd = null
+//                    showAddDialog = true
+//                }
+//            )
+//
+//        },
+//        content = {
+//            // Network Status Banner
+//            if (!networkState.hasInternet) {
+//
+//                CustomSpacer()
+//
+//                PaddedSection(
+//                    alignment = Alignment.CenterHorizontally,
+//                    content = {
+//                        NetworkStatusBanner(
+//                            networkState = networkState,
+//                        )
+//                    }
+//                )
+//
+//                CustomSpacer()
+//            }
+//
+//            currentSnackBarData?.let { snackBarData ->
+//                PaddedSection(
+//                    alignment = Alignment.CenterHorizontally,
+//                    content = {
+//                        FloatingCustomSnackBar(
+//                            snackBarData = snackBarData,
+//                            visible = showSnackBar,
+//                            modifier = Modifier
+//                                .navigationBarsPadding()
+//                                .padding(top = windowSizeClass.baseSize),
+//                            onDismiss = {
+//                                showSnackBar = false
+//                                currentSnackBarData = null
+//                            }
+//                        )
+//                    }
+//                )
+//            }
+//
+//            CustomSpacer()
+//            PaddedSection(
+//                alignment = Alignment.CenterHorizontally,
+//                content = {
+//                    // search bar
+//                    CustomSpacer()
+//                    CustomSearchBar(
+//                        query = searchQuery,
+//                        onQueryChange = { newQuery ->
+//                            searchQuery = newQuery
+//                            if (newQuery.isNotEmpty()) {
+//                                viewModel.searchCategories(newQuery)
+//                            } else {
+//                                viewModel.loadCategories()
+//                            }
+//                        },
+//                        onSearch = { query ->
+//                            viewModel.searchCategories(query)
+//                        },
+//                        leadingIcon = {
+//                            CustomIcon(
+//                                icon = Icons.Filled.Search,
+//                                contentDescription = "Search",
+//                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+//                            )
+//                        },
+//                        placeholder = {
+//                            Text(
+//                                stringResource(R.string.search_categories),
+//                                style = windowSizeClass.bodyTextStyle
+//                            )
+//                        },
+//                        trailingIcon = {
+//                            if (searchQuery.isNotEmpty()) {
+//                                ButtonIconComposable(
+//                                    showBgColor = false,
+//                                    buttonIcon = ButtonIcon.Vector(Icons.Filled.Clear),
+//                                    onClick = {
+//                                        searchQuery = ""
+//                                        viewModel.loadCategories()
+//                                    },
+//                                    contentDescription = "Clear"
+//                                )
+//                            }
+//                        }
+//                    )
+//                    CustomSpacer()
+//
+//                    when {
+//                        categoryState.isLoading -> {
+//                            CustomListCardShimmer()
+//                        }
+//
+//                        categoryState.error != null -> {
+//                            CustomEmptyState(
+//                                btnLabel = R.string.retry,
+//                                subTitle = R.string.category_error,
+//                                onBtnClick = {
+//                                    viewModel.loadCategories()
+//                                    viewModel.loadCategoryTree()
+//                                },
+//                                leadingIcon = Icons.Filled.Error,
+//                            )
+//                        }
+//
+//                        searchQuery.isNotEmpty() && categoryState.categories.isEmpty() -> {
+//                            CustomEmptyState(
+//                                titleStr = "No results found",
+//                                showBtn = false,
+//                                leadingIcon = Icons.Filled.SearchOff,
+//                            )
+//                        }
+//
+//                        else -> {
+//                            if (viewMode == ViewMode.TREE) {
+//                                // Tree View
+//                                if (categoryState.categoryTree.isEmpty()) {
+//                                    CustomEmptyState(
+//                                        title = R.string.no_categories_available,
+//                                        subTitle = R.string.add_first_category,
+//                                        showBtn = false,
+//                                        leadingIcon = Icons.Filled.Category,
+//                                    )
+//                                } else {
+//                                    CustomLazyColumn {
+//                                        item {
+//                                            Row(
+//                                                modifier = Modifier.fillMaxWidth(),
+//                                                horizontalArrangement = Arrangement.SpaceBetween,
+//                                                verticalAlignment = Alignment.CenterVertically
+//                                            ) {
+//                                                Text(
+//                                                    stringResource(R.string.view_mode),
+//                                                    style = windowSizeClass.bodyTextStyle
+//                                                )
+//
+//                                                Row(
+//                                                    horizontalArrangement = Arrangement.spacedBy(
+//                                                        windowSizeClass.normalVerticalPadding
+//                                                    )
+//                                                ) {
+//                                                    CustomFilterChip(
+//                                                        isSelected = viewMode == ViewMode.TREE,
+//                                                        onClick = { viewMode = ViewMode.TREE },
+//                                                        label = "Tree",
+//                                                        leadingIcon = if (viewMode == ViewMode.TREE) {
+//                                                            {
+//                                                                CustomIcon(
+//                                                                    icon = Icons.Filled.AccountTree,
+//                                                                    contentDescription = null
+//                                                                )
+//                                                            }
+//                                                        } else null
+//                                                    )
+//
+//                                                    CustomFilterChip(
+//                                                        isSelected = viewMode == ViewMode.LIST,
+//                                                        onClick = { viewMode = ViewMode.LIST },
+//                                                        label = "List",
+//                                                        leadingIcon = if (viewMode == ViewMode.LIST) {
+//                                                            {
+//                                                                CustomIcon(
+//                                                                    icon = Icons.AutoMirrored.Filled.List,
+//                                                                    contentDescription = null,
+//                                                                    iconSize = customSpacing.custom18
+//                                                                )
+//                                                            }
+//                                                        } else null
+//                                                    )
+//                                                }
+//                                            }
+//                                        }
+//
+//                                        items(items = categoryState.categoryTree) { node ->
+//                                            CategoryTreeItem(
+//                                                node = node,
+//                                                onExpand = { viewModel.toggleCategoryExpansion(it) },
+//                                                onEdit = {
+//                                                    selectedCategory = it
+//                                                    showEditDialog = true
+//                                                },
+//                                                onDelete = {
+//                                                    selectedCategory = it
+//                                                    showDeleteDialog = true
+//                                                },
+//                                                onAddSubcategory = {
+//                                                    selectedParentForAdd = it
+//                                                    showAddDialog = true
+//                                                }
+//                                            )
+//                                        }
+//                                        item {
+//                                            CustomSpacer(modifier = Modifier.height(windowSizeClass.customSpacerSmall))
+//                                        }
+//                                    }
+//                                }
+//                            } else {
+//                                // List View
+//                                if (categoryState.categories.isEmpty()) {
+//                                    CustomEmptyState(
+//                                        titleStr = "No categories yet",
+//                                        showBtn = false,
+//                                        leadingIcon = Icons.Filled.Category,
+//                                    )
+//                                } else {
+//                                    CustomLazyColumn {
+//
+//                                        items(categoryState.categories) { category ->
+//                                            CategoryListCard(
+//                                                category = category,
+//                                                onEdit = {
+//                                                    selectedCategory = category
+//                                                    showEditDialog = true
+//                                                },
+//                                                onDelete = {
+//                                                    selectedCategory = category
+//                                                    showDeleteDialog = true
+//                                                },
+//                                                onAddSubcategory = {
+//                                                    selectedParentForAdd = category
+//                                                    showAddDialog = true
+//                                                }
+//                                            )
+//                                        }
+//                                        item {
+//                                            CustomSpacer(modifier = Modifier.height(windowSizeClass.customSpacerSmall))
+//                                        }
+//                                    }
+//                                }
+//                            }
+//                        }
+//                    }
+//                })
+//
+//            // Dialogs
+//            if (showAddDialog) {
+//                AddCategoryDialog(
+//                    parentCategory = selectedParentForAdd,
+//                    onDismiss = {
+//                        showAddDialog = false
+//                        selectedParentForAdd = null
+//                    },
+//                    onConfirm = { categoryName, categoryImage, description ->
+//                        viewModel.createCategory(
+//                            categoryName = categoryName,
+//                            parentId = selectedParentForAdd?.id,
+//                            categoryImage = categoryImage,
+//                            description = description
+//                        )
+//                        showAddDialog = false
+//                        selectedParentForAdd = null
+//                    }
+//                )
+//            }
+//
+//            if (showEditDialog && selectedCategory != null) {
+//                EditCategoryDialog(
+//                    category = selectedCategory!!,
+//                    onDismiss = {
+//                        showEditDialog = false
+//                        selectedCategory = null
+//                    },
+//                    onConfirm = { categoryName, categoryImage, description ->
+//                        viewModel.updateCategory(
+//                            categoryId = selectedCategory!!.id,
+//                            categoryName = categoryName,
+//                            categoryImage = categoryImage,
+//                            description = description
+//                        )
+//                        showEditDialog = false
+//                        selectedCategory = null
+//                    }
+//                )
+//            }
+//
+//            if (showDeleteDialog && selectedCategory != null) {
+//                DeleteCategoryDialog(
+//                    category = selectedCategory!!,
+//                    onDismiss = {
+//                        showDeleteDialog = false
+//                        selectedCategory = null
+//                    },
+//                    onConfirm = {
+//                        viewModel.deleteCategory(
+//                            selectedCategory!!.id,
+//                            selectedCategory!!.categoryName
+//                        )
+//                        showDeleteDialog = false
+//                        selectedCategory = null
+//                    }
+//                )
+//            }
+//        },
+//        actions = {
+//            if (categoryState.isLoading) {
+//                TopBarActionsShimmer()
+//            } else {
+//                // Network Indicator in top bar
+//                NetworkIndicator(networkState = networkState)
+//
+//                CustomSpacer()
+//
+//                ButtonIconComposable(
+//                    showBgColor = false,
+//                    buttonIcon = ButtonIcon.Vector(Icons.Filled.Refresh),
+//                    onClick = {
+//                        viewModel.loadCategories()
+//                        viewModel.loadCategoryTree()
+//                    },
+//                    contentDescription = "Refresh"
+//                )
+//            }
+//        }
+//    )
+//}
+
 @Composable
 fun CategoryManagementScreen(
     viewModel: CategoryViewModel = hiltViewModel(),
@@ -169,14 +555,11 @@ fun CategoryManagementScreen(
                     showAddDialog = true
                 }
             )
-
         },
         content = {
             // Network Status Banner
             if (!networkState.hasInternet) {
-
                 CustomSpacer()
-
                 PaddedSection(
                     alignment = Alignment.CenterHorizontally,
                     content = {
@@ -185,7 +568,6 @@ fun CategoryManagementScreen(
                         )
                     }
                 )
-
                 CustomSpacer()
             }
 
@@ -212,8 +594,8 @@ fun CategoryManagementScreen(
             PaddedSection(
                 alignment = Alignment.CenterHorizontally,
                 content = {
-                    // search bar
                     CustomSpacer()
+                    // Search Bar
                     CustomSearchBar(
                         query = searchQuery,
                         onQueryChange = { newQuery ->
@@ -254,6 +636,56 @@ fun CategoryManagementScreen(
                             }
                         }
                     )
+
+                    CustomSpacer()
+
+                    // VIEW MODE SELECTOR (Moved here so it is always visible)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            stringResource(R.string.view_mode),
+                            style = windowSizeClass.bodyTextStyle
+                        )
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(
+                                windowSizeClass.normalVerticalPadding
+                            )
+                        ) {
+                            CustomFilterChip(
+                                isSelected = viewMode == ViewMode.TREE,
+                                onClick = { viewMode = ViewMode.TREE },
+                                label = "Tree",
+                                leadingIcon = if (viewMode == ViewMode.TREE) {
+                                    {
+                                        CustomIcon(
+                                            icon = Icons.Filled.AccountTree,
+                                            contentDescription = null
+                                        )
+                                    }
+                                } else null
+                            )
+
+                            CustomFilterChip(
+                                isSelected = viewMode == ViewMode.LIST,
+                                onClick = { viewMode = ViewMode.LIST },
+                                label = "List",
+                                leadingIcon = if (viewMode == ViewMode.LIST) {
+                                    {
+                                        CustomIcon(
+                                            icon = Icons.AutoMirrored.Filled.List,
+                                            contentDescription = null,
+                                            iconSize = customSpacing.custom18
+                                        )
+                                    }
+                                } else null
+                            )
+                        }
+                    }
+
                     CustomSpacer()
 
                     when {
@@ -283,7 +715,6 @@ fun CategoryManagementScreen(
 
                         else -> {
                             if (viewMode == ViewMode.TREE) {
-                                // Tree View
                                 if (categoryState.categoryTree.isEmpty()) {
                                     CustomEmptyState(
                                         title = R.string.no_categories_available,
@@ -293,54 +724,6 @@ fun CategoryManagementScreen(
                                     )
                                 } else {
                                     CustomLazyColumn {
-                                        item {
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Text(
-                                                    stringResource(R.string.view_mode),
-                                                    style = windowSizeClass.bodyTextStyle
-                                                )
-
-                                                Row(
-                                                    horizontalArrangement = Arrangement.spacedBy(
-                                                        windowSizeClass.normalVerticalPadding
-                                                    )
-                                                ) {
-                                                    CustomFilterChip(
-                                                        isSelected = viewMode == ViewMode.TREE,
-                                                        onClick = { viewMode = ViewMode.TREE },
-                                                        label = "Tree",
-                                                        leadingIcon = if (viewMode == ViewMode.TREE) {
-                                                            {
-                                                                CustomIcon(
-                                                                    icon = Icons.Filled.AccountTree,
-                                                                    contentDescription = null
-                                                                )
-                                                            }
-                                                        } else null
-                                                    )
-
-                                                    CustomFilterChip(
-                                                        isSelected = viewMode == ViewMode.LIST,
-                                                        onClick = { viewMode = ViewMode.LIST },
-                                                        label = "List",
-                                                        leadingIcon = if (viewMode == ViewMode.LIST) {
-                                                            {
-                                                                CustomIcon(
-                                                                    icon = Icons.AutoMirrored.Filled.List,
-                                                                    contentDescription = null,
-                                                                    iconSize = customSpacing.custom18
-                                                                )
-                                                            }
-                                                        } else null
-                                                    )
-                                                }
-                                            }
-                                        }
-
                                         items(items = categoryState.categoryTree) { node ->
                                             CategoryTreeItem(
                                                 node = node,
@@ -365,7 +748,6 @@ fun CategoryManagementScreen(
                                     }
                                 }
                             } else {
-                                // List View
                                 if (categoryState.categories.isEmpty()) {
                                     CustomEmptyState(
                                         titleStr = "No categories yet",
@@ -374,7 +756,6 @@ fun CategoryManagementScreen(
                                     )
                                 } else {
                                     CustomLazyColumn {
-
                                         items(categoryState.categories) { category ->
                                             CategoryListCard(
                                                 category = category,
@@ -465,11 +846,8 @@ fun CategoryManagementScreen(
             if (categoryState.isLoading) {
                 TopBarActionsShimmer()
             } else {
-                // Network Indicator in top bar
                 NetworkIndicator(networkState = networkState)
-
                 CustomSpacer()
-
                 ButtonIconComposable(
                     showBgColor = false,
                     buttonIcon = ButtonIcon.Vector(Icons.Filled.Refresh),

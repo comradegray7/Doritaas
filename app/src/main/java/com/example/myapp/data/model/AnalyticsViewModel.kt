@@ -3,6 +3,7 @@ package com.example.myapp.data.model
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.myapp.data.dataclass.SnackBarData
+import com.example.myapp.data.repository.AuthRepository
 import com.example.myapp.data.repository.BrandRepository
 import com.example.myapp.data.repository.CarouselRepository
 import com.example.myapp.data.repository.CategoryRepository
@@ -41,7 +42,9 @@ import kotlinx.coroutines.launch
  * @property shipmentsCount Total number of shipment methods
  * @property ordersCount Total number of orders
  * @property promotionsCount Total number of active promotions
+ * @property usersCount Total number of active users
  * @property isChartLoading Loading indicator specifically for charts
+ *
  */
 data class AnalyticsState(
     val isLoading: Boolean = false,
@@ -56,6 +59,7 @@ data class AnalyticsState(
     val shipmentsCount: Int = 0,
     val ordersCount: Int = 0,
     val promotionsCount: Int = 0,
+    val usersCount: Int = 0,
     val isChartLoading: Boolean = false,
 )
 
@@ -78,6 +82,7 @@ class AnalyticsViewModel @Inject constructor(
     private val colorRepository: ColorRepository,
     private val promotionRepository: PromotionRepository,
     private val tagRepository: TagRepository,
+    private val authRepository: AuthRepository,
     private val carouselRepository: CarouselRepository
 ) : ViewModel() {
 
@@ -109,6 +114,7 @@ class AnalyticsViewModel @Inject constructor(
                 val promotionsDeferred = async { promotionRepository.getPromotions() }
                 val tagsDeferred = async { tagRepository.getAllTags() }
                 val carouselDeferred = async { carouselRepository.getCarousels() }
+                val usersDeferred = async { authRepository.getAllUsers() }
 
                 // Wait for all to complete
                 val products = productsDeferred.await()
@@ -121,6 +127,7 @@ class AnalyticsViewModel @Inject constructor(
                 val promotions = promotionsDeferred.await()
                 val tags = tagsDeferred.await()
                 val carousels = carouselDeferred.await()
+                val users = usersDeferred.await()
 
                 _analyticsState.value = _analyticsState.value.copy(
                     isLoading = false,
@@ -134,6 +141,8 @@ class AnalyticsViewModel @Inject constructor(
                     promotionsCount = promotions.getOrThrow().size,
                     tagCount = tags.getOrThrow().size,
                     carouselCount = carousels.getOrThrow().size,
+                    usersCount = users.getOrThrow().size
+
                 )
 
             } catch (e: Exception) {

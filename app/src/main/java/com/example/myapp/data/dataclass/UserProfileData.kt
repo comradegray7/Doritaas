@@ -27,7 +27,10 @@ data class UserProfile(
     val phone: String = "",
     val photoUrl: String? = "",
     val bio: String = "",
-    val lastLogin: Timestamp? = null,  
+    val provider: String = "google",
+    val admin:Boolean = false,
+    val superAdmin:Boolean = false,
+    val lastLogin: Timestamp? = null,
     val createdAt: Timestamp? = null,
     val updatedAt: Timestamp? = null
 ) {

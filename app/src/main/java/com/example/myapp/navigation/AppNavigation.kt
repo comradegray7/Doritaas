@@ -47,6 +47,7 @@ import com.example.myapp.view.admin.PromotionManagementScreen
 import com.example.myapp.view.admin.ShipmentManagementScreen
 import com.example.myapp.view.admin.SizeManagementScreen
 import com.example.myapp.view.admin.TagManagementScreen
+import com.example.myapp.view.admin.UserManagementScreen
 import com.example.myapp.view.admin.components.AddProductScreen
 import com.example.myapp.view.admin.components.EditProductScreen
 import com.example.myapp.view.components.CustomIcon
@@ -77,21 +78,25 @@ import com.example.myapp.view.screens.product.promotions.PrimeDetailsScreen
 import com.example.myapp.view.screens.product.promotions.PromotionsScreen
 
 /**
- * AppNavigationGraph - Main navigation graph for the entire application.
+ * Builds the app-wide Compose navigation graph.
  *
- * This composable defines all the navigation routes and their associated screens,
- * including animations and navigation logic. It uses SharedTransitionLayout for
- * smooth transitions between screens and supports both light and dark themes.
+ * This graph wires public shopping routes, guest-only auth routes, authenticated customer
+ * routes, checkout, order confirmation, promotion flows, and admin management screens into a
+ * single [NavHost]. It also centralizes transition animations and wraps destinations that need
+ * shared-element context in [SharedTransitionLayout].
  *
- * The navigation graph is organized into several sections:
- * - Onboarding screens
- * - Bottom bar destinations (main app screens)
- * - Authentication screens (AuthGuard/GuestGuard)
- * - Product-related screens (Shared Element Transitions)
- * - Admin screens (AdminGuard)
+ * Route protection is handled at the destination boundary:
+ * - [GuestGuard] redirects already-authenticated users away from guest-only screens.
+ * - [AuthGuard] redirects unauthenticated users to sign-in for protected customer flows.
+ * - [AdminGuard] prevents non-admin users from opening admin management screens.
  *
- * @param navController Navigation controller for managing navigation state.
- * @param startDestination The initial destination route.
+ * Product/cart checkout data is passed through `savedStateHandle` when the payload is too large
+ * for route arguments, while scalar identifiers continue to use path/query arguments.
+ *
+ * @param modifier Modifier applied to the underlying [NavHost].
+ * @param navController Navigation controller used to navigate and read back stack state.
+ * @param startDestination Initial route for the graph. An empty value prevents graph creation
+ * while app startup determines the real start destination.
  *
  * ## Usage:
  * ```
@@ -884,6 +889,7 @@ fun AppNavigationGraph(
                             onOrderClick = { navController.navigate(AppRoutes.ORDER_DASHBOARD) },
                             onPrimeClick = { navController.navigate(AppRoutes.PRIME_MANAGEMENT) },
                             onTagClick = { navController.navigate(AppRoutes.MANAGE_TAGS) },
+                            onUsersClick = {navController.navigate(AppRoutes.MANAGE_USERS) },
                             onCarouselClick = { navController.navigate(AppRoutes.MANAGE_CAROUSEL) },
                         )
                     }
@@ -1165,6 +1171,35 @@ fun AppNavigationGraph(
                 }
 
                 composable(
+                    route = AppRoutes.MANAGE_USERS,
+                    enterTransition = { NavigationAnimations.slideInFromLeft() },
+                    exitTransition = { NavigationAnimations.slideOutToRight() },
+                    popEnterTransition = { NavigationAnimations.slideInFromLeft() },
+                    popExitTransition = { NavigationAnimations.slideOutToRight() }
+                ) {
+                    AdminGuard(
+                        onUnauthorized = {
+                            navController.navigate(AppRoutes.ADMIN_DASHBOARD) {
+                                popUpTo(navController.graph.startDestinationId) {
+                                    inclusive = false
+                                }
+                                launchSingleTop = true
+                            }
+                        }
+                    ) {
+                        UserManagementScreen(
+                            onNavigateBack = {
+                                // Pop back to the existing ProductManagement instance
+                                navController.popBackStack(
+                                    route = AppRoutes.PRODUCT_DASHBOARD,
+                                    inclusive = false
+                                )
+                            }
+                        )
+                    }
+                }
+
+                composable(
                     route = AppRoutes.COLORS_DASHBOARD,
                     enterTransition = { NavigationAnimations.slideInFromLeft() },
                     exitTransition = { NavigationAnimations.slideOutToRight() },
@@ -1236,4 +1271,3 @@ fun AppNavigationGraph(
         }
     }
 }
-

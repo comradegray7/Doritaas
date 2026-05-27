@@ -1,3 +1,4 @@
+
 @file:OptIn(ExperimentalMaterial3Api::class)
 
 package com.example.myapp.view.screens.product
@@ -25,15 +26,14 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddLocationAlt
 import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ColorLens
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.LocationOff
-import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Percent
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Security
@@ -105,10 +105,8 @@ import com.example.myapp.view.components.CustomScaffoldContainer
 import com.example.myapp.view.components.CustomSpacer
 import com.example.myapp.view.components.FloatingCustomSnackBar
 import com.example.myapp.view.components.PaddedSection
-import com.example.myapp.view.components.TopBarActionsShimmer
 import com.example.myapp.view.components.custom.buttons.ButtonIconComposable
 import com.example.myapp.view.components.custom.buttons.CustomButton
-import com.example.myapp.view.components.custom.buttons.CustomOutlinedButton
 import com.example.myapp.view.components.custom.buttons.CustomTextButton
 import com.example.myapp.view.screens.AddAddressDialog
 import com.example.myapp.view.utils.ButtonIcon
@@ -121,55 +119,57 @@ import com.stripe.android.paymentsheet.PaymentSheet.Builder
 import com.stripe.android.paymentsheet.PaymentSheetResult
 import kotlinx.coroutines.delay
 
-// ============================================
-// Enhanced PaymentScreen with Editable Options
-// ============================================
+// ============================================================
+// Validation helpers
+// ============================================================
 
-/**
- * PaymentScreen - Stripe-integrated payment and checkout screen
- *
- * Comprehensive payment processing screen with Stripe integration, allowing users to
- * review order details, edit product options, select delivery address, and complete payment.
- *
- * ## Features
- * - **Stripe Payment Integration**: Secure payment processing via Stripe Payment Sheet
- * - **Editable Product Options**: Modify size, color, and shipping method before payment
- * - **Address Selection**: Choose or add delivery addresses
- * - **Real-time Price Calculation**: Updates total based on selections
- * - **Order Summary**: Detailed breakdown of items, shipping, and totals
- * - **Payment States**: Loading, ready, success, and error handling
- * - **Security Indicators**: Shows secure payment badges
- *
- * ## User Workflow
- * 1. Review cart items with product details
- * 2. Edit size, color, or shipping options if needed
- * 3. Select or add delivery address
- * 4. Review total amount and breakdown
- * 5. Click "Proceed to Pay" to open Stripe payment sheet
- * 6. Complete payment securely
- * 7. Receive order confirmation
- *
- * ## Payment States
- * - **FetchConfig**: Loading payment configuration from Stripe
- * - **Ready**: Payment sheet ready to present
- * - **Success**: Payment completed successfully
- * - **Error**: Payment failed, retry available
- *
- * @param cartItems List of products from cart
- * @param customerEmail Customer's email for Stripe
- * @param customerName Customer's name for Stripe
- * @param viewModel ViewModel for payment operations
- * @param addressViewModel ViewModel for delivery address operations
- * @param productViewModel ViewModel for product data
- * @param shipmentViewModel ViewModel for shipping options
- * @param onBackNavigation Callback for back navigation
- * @param productItems Alternative product list (overrides cartItems)
- * @param onPaymentSuccess Callback when payment succeeds with created order
- *
- * @see PaymentViewModel for payment processing
- * @see com.example.myapp.view.screens.product.order.OrderConfirmationScreen for post-payment screen
- * @see DeliveryAddressViewModel for address management
- */
+data class CheckoutValidationResult(
+    val isValid: Boolean,
+    val errors: List<String>,
+    val itemFieldErrors: Map<Int, Set<String>> = emptyMap()
+)
+
+fun validateCheckoutItems(
+    items: List<ProductItem>,
+    address: DeliveryAddress?
+): CheckoutValidationResult {
+    val errors = mutableListOf<String>()
+    val itemFieldErrors = mutableMapOf<Int, MutableSet<String>>()
+
+    if (address == null) {
+        errors.add("Please select a delivery address")
+    }
+
+    items.forEachIndexed { index, item ->
+        val itemErrors = mutableSetOf<String>()
+        val label = if (items.size > 1) "Item ${index + 1} (${item.productName})" else item.productName
+
+        if (item.sizes.isNotEmpty() && item.selectedSize.isEmpty()) {
+            errors.add("$label: Select a size")
+            itemErrors.add("size")
+        }
+        if (item.colors.isNotEmpty() && item.selectedColor.isEmpty()) {
+            errors.add("$label: Select a color")
+            itemErrors.add("color")
+        }
+        if (item.selectedShipment.isEmpty()) {
+            errors.add("$label: Select a shipping option")
+            itemErrors.add("shipping")
+        }
+
+        if (itemErrors.isNotEmpty()) itemFieldErrors[index] = itemErrors
+    }
+
+    return CheckoutValidationResult(
+        isValid = errors.isEmpty(),
+        errors = errors,
+        itemFieldErrors = itemFieldErrors
+    )
+}
+
+// ============================================================
+// PaymentScreen
+// ============================================================
 
 @Composable
 fun PaymentScreen(
@@ -187,14 +187,13 @@ fun PaymentScreen(
     cloudinaryHelper: CloudinaryHelper = CloudinaryHelper(),
     networkManager: NetworkManager = hiltViewModel<NetworkViewModel>().networkManager
 ) {
-
     val sheetConfig by viewModel.sheetConfig.collectAsState()
     val paymentState by viewModel.paymentState.collectAsState()
     val currentAmount by viewModel.currentAmount.collectAsState()
     val addressState by addressViewModel.state.collectAsState()
-    val productUiState by productViewModel.productState.collectAsState()
     val orderCreated by viewModel.orderCreated.collectAsState()
     val checkoutSummary by viewModel.checkoutSummary.collectAsState()
+    val productUiState by productViewModel.productState.collectAsState()
     val networkState = rememberNetworkState(networkManager)
 
     val context = LocalContext.current
@@ -205,9 +204,7 @@ fun PaymentScreen(
         sourceItems.map { item ->
             item.copy(
                 selectedColor = item.selectedColor,
-                selectedSize = item.selectedSize.ifEmpty {
-                    item.sizes.firstOrNull() ?: ""
-                }
+                selectedSize = item.selectedSize.ifEmpty { item.sizes.firstOrNull() ?: "" }
             )
         }
     }
@@ -215,84 +212,89 @@ fun PaymentScreen(
     var editableCartItems by remember { mutableStateOf(initialItems) }
     var selectedItemIndex by remember { mutableIntStateOf(0) }
 
-    // Dialog states
     var showCustomerDetailsDialog by remember { mutableStateOf(false) }
     var showAddressSelectionDialog by remember { mutableStateOf(false) }
     var showAddAddressDialog by remember { mutableStateOf(false) }
     var showShipmentDialog by remember { mutableStateOf(false) }
     var showSizeDialog by remember { mutableStateOf(false) }
     var showColorDialog by remember { mutableStateOf(false) }
+    var showQuantityDialog by remember { mutableStateOf(false) }
     var currentEditingItemIndex by remember { mutableIntStateOf(-1) }
+    val defaultColor = remember { listOf("Black") }
+
+    var isPaymentTriggered by remember { mutableStateOf(false) }
+    var lockedCheckoutItems by remember { mutableStateOf<List<ProductItem>>(emptyList()) }
+    var lockedDeliveryAddress by remember { mutableStateOf<DeliveryAddress?>(null) }
 
     var selectedAddress by remember { mutableStateOf<DeliveryAddress?>(null) }
     var currentSnackBarData by remember { mutableStateOf<SnackBarData?>(null) }
     var showSnackBar by remember { mutableStateOf(false) }
     val snackBarHostState = remember { SnackbarHostState() }
-    val defaultColor = remember { listOf("Black") }
 
     val totalAmount = remember(editableCartItems) {
-        editableCartItems.sumOf {
-            (it.price * it.quantity) + it.shipmentCost
-        }
+        editableCartItems.sumOf { (it.price * it.quantity) + it.shipmentCost }
+    }
+
+    val paymentItems = lockedCheckoutItems.ifEmpty { editableCartItems }
+    val paymentAddress = lockedDeliveryAddress ?: selectedAddress
+
+    // Derived validation — updates automatically whenever items or address change
+    val validation = remember(editableCartItems, selectedAddress) {
+        validateCheckoutItems(editableCartItems, selectedAddress)
     }
 
     val paymentResultCallback = { paymentResult: PaymentSheetResult ->
         viewModel.updatePaymentState(paymentResult)
+        if (paymentResult is PaymentSheetResult.Canceled || paymentResult is PaymentSheetResult.Failed) {
+            isPaymentTriggered = false
+            lockedCheckoutItems = emptyList()
+            lockedDeliveryAddress = null
+        }
     }
+    val paymentSheet = remember(paymentResultCallback) { Builder(paymentResultCallback) }.build()
+    val isLoading = paymentState is PaymentState.FetchConfig
 
-    // One-time setup only - no config fetching here
     LaunchedEffect(Unit) {
         primeViewModel.loadPrimeStatus()
         addressViewModel.loadUserAddresses()
         shipmentViewModel.loadShipments()
     }
 
-    //  Debug logging kept from original
     LaunchedEffect(Unit) {
-        cartItems.forEachIndexed { index, item ->
-            println("Cart item $index: ${item.productName}")
-        }
-        productItems.forEachIndexed { index, item ->
-            println("Product item $index: ${item.productName}")
-        }
+        cartItems.forEachIndexed { index, item -> println("Cart item $index: ${item.productName}") }
+        productItems.forEachIndexed { index, item -> println("Product item $index: ${item.productName}") }
     }
 
-    //  Stripe init moved here so it fires only when config actually arrives
-    LaunchedEffect(sheetConfig) {
-        sheetConfig?.let {
-            PaymentConfiguration.init(context, it.publishableKey)
-            Log.d("Stripe", "Stripe initialized with key: ${it.publishableKey}")
-        }
-    }
-
-    // fetchConfigurationWithAmount fallback is preserved
     LaunchedEffect(editableCartItems) {
-        if (editableCartItems.isNotEmpty()) {
-            viewModel.fetchConfiguration(
-                customerEmail = customerEmail,
-                customerName = customerName,
-                productItems = editableCartItems,
-                deliveryAddress = selectedAddress
-            )
-        } else {
-            viewModel.fetchConfigurationWithAmount(currentAmount)
+        if (!isPaymentTriggered && editableCartItems.isNotEmpty()) {
+            viewModel.updateCheckoutSummary(editableCartItems)
         }
     }
 
-    //  Refetch only when address actually changes, null guard preserved
-    LaunchedEffect(selectedAddress) {
-        val address = selectedAddress ?: return@LaunchedEffect
-        if (editableCartItems.isNotEmpty()) {
-            viewModel.fetchConfiguration(
-                customerEmail = customerEmail,
-                customerName = customerName,
-                productItems = editableCartItems,
-                deliveryAddress = address
+    LaunchedEffect(paymentState, sheetConfig) {
+        if (isPaymentTriggered && paymentState is PaymentState.Ready && sheetConfig != null) {
+            PaymentConfiguration.init(context, sheetConfig!!.publishableKey)
+            paymentSheet.presentWithPaymentIntent(
+                paymentIntentClientSecret = sheetConfig!!.paymentIntent,
+                configuration = PaymentSheet.Configuration(
+                    merchantDisplayName = "Doritaas",
+                    customer = PaymentSheet.CustomerConfiguration(
+                        id = sheetConfig!!.customer,
+                        ephemeralKeySecret = sheetConfig!!.ephemeralKey
+                    )
+                )
             )
         }
     }
 
-    // Watch for order creation
+    LaunchedEffect(paymentState) {
+        if (paymentState is PaymentState.Error) {
+            isPaymentTriggered = false
+            lockedCheckoutItems = emptyList()
+            lockedDeliveryAddress = null
+        }
+    }
+
     LaunchedEffect(orderCreated) {
         orderCreated?.let { order ->
             Log.d("PaymentScreen", "Order created successfully: ${order.id}")
@@ -301,7 +303,6 @@ fun PaymentScreen(
         }
     }
 
-    // Watch for address state - set default address
     LaunchedEffect(addressState.addresses) {
         if (selectedAddress == null && addressState.addresses.isNotEmpty()) {
             selectedAddress = addressState.addresses.find { it.isDefault }
@@ -309,7 +310,6 @@ fun PaymentScreen(
         }
     }
 
-    // Collect snack bar data
     LaunchedEffect(Unit) {
         viewModel.snackBarData.collect { snackBarData ->
             currentSnackBarData = snackBarData
@@ -327,22 +327,18 @@ fun PaymentScreen(
         }
     }
 
-    val paymentSheet = remember(paymentResultCallback) { Builder(paymentResultCallback) }.build()
-    val isLoading = paymentState is PaymentState.FetchConfig
-
     Box(modifier = Modifier.fillMaxSize()) {
         CustomScaffoldContainer(
             onRefresh = {
                 if (networkState.hasInternet) {
-                    if (editableCartItems.isNotEmpty()) {
-                        viewModel.fetchConfiguration(
-                            customerEmail = customerEmail,
-                            customerName = customerName,
-                            productItems = editableCartItems,
-                            deliveryAddress = selectedAddress
+                    if (isPaymentTriggered) {
+                        currentSnackBarData = SnackBarData(
+                            message = "Payment is locked. Cancel payment to change your order.",
+                            duration = SnackbarDuration.Short
                         )
-                    } else {
-                        viewModel.fetchConfigurationWithAmount(currentAmount)
+                        showSnackBar = true
+                    } else if (editableCartItems.isNotEmpty()) {
+                        viewModel.updateCheckoutSummary(editableCartItems)
                     }
                 } else {
                     currentSnackBarData = SnackBarData(
@@ -353,39 +349,30 @@ fun PaymentScreen(
                     showSnackBar = true
                 }
             },
-            onNavigateBack = { onBackNavigation() },
+            onNavigateBack = {
+                if (isPaymentTriggered) {
+                    currentSnackBarData = SnackBarData(
+                        message = "Payment is locked. Cancel payment to change your order.",
+                        duration = SnackbarDuration.Short
+                    )
+                    showSnackBar = true
+                } else {
+                    onBackNavigation()
+                }
+            },
             verticalArrangement = Arrangement.Top,
             title = R.string.order_summary_title,
             showBottomBar = false,
-            floatingBtnContent = {
-                CustomOutlinedButton(
-                    label = R.string.create_address,
-                    icon = ButtonIcon.Vector(Icons.Filled.Add),
-                    onClick = {
-                        showAddAddressDialog = true
-                    },
-                    contentDescription = "Delivery address"
-                )
-            },
             snackBarHostState = snackBarHostState,
             content = {
                 if (!networkState.hasInternet) {
-                    // Network Indicator in top bar
                     CustomSpacer()
-
                     NetworkIndicator(networkState = networkState)
-
                     CustomSpacer()
-
                     PaddedSection(
                         alignment = Alignment.CenterHorizontally,
-                        content = {
-                            NetworkStatusBanner(
-                                networkState = networkState,
-                            )
-                        }
+                        content = { NetworkStatusBanner(networkState = networkState) }
                     )
-
                 }
 
                 currentSnackBarData?.let { snackBarData ->
@@ -407,536 +394,465 @@ fun PaymentScreen(
                     )
                 }
 
-                when (paymentState) {
-                    is PaymentState.FetchConfig -> {
-                        PaddedSection(
-                            alignment = Alignment.CenterHorizontally,
-                            content = {
-                                CustomListCardShimmer()
-                            })
-                    }
-
-                    is PaymentState.Error -> {
-                        PaddedSection(
-                            alignment = Alignment.CenterHorizontally,
-                            content = {
-                                CustomEmptyState(
-                                    btnLabel = R.string.retry,
-                                    titleStr = (paymentState as PaymentState.Error).message,
-                                    onBtnClick = { viewModel.refreshPaymentState() },
-                                    leadingIcon = Icons.Filled.Error,
-                                )
-                            }
-                        )
-                    }
-
-                    else -> {
-                        if (editableCartItems.isEmpty()) {
+                if (paymentState is PaymentState.FetchConfig && !isPaymentTriggered) {
+                    PaddedSection(
+                        alignment = Alignment.CenterHorizontally,
+                        content = { CustomListCardShimmer() }
+                    )
+                } else if (paymentState is PaymentState.Error) {
+                    PaddedSection(
+                        alignment = Alignment.CenterHorizontally,
+                        content = {
                             CustomEmptyState(
-                                title = R.string.no_results,
-                                showBtn = false,
-                                btnIcon = Icons.Filled.ShoppingCart,
+                                btnLabel = R.string.retry,
+                                titleStr = (paymentState as PaymentState.Error).message,
+                                onBtnClick = { viewModel.refreshPaymentState() },
+                                leadingIcon = Icons.Filled.Error,
                             )
-                        } else {
-                            PaddedSection(content = {
-                                CustomLazyColumn {
-                                    item {
-                                        Text(
-                                            text = "Items (${editableCartItems.size})",
-                                            style = windowSizeConstant.titleTextStyle,
-                                            fontWeight = FontWeight.SemiBold,
-                                            modifier = Modifier.padding(bottom = windowSizeConstant.normalVerticalPadding)
-                                        )
-                                    }
+                        }
+                    )
+                } else {
+                    if (editableCartItems.isEmpty()) {
+                        CustomEmptyState(
+                            title = R.string.no_results,
+                            showBtn = false,
+                            btnIcon = Icons.Filled.ShoppingCart,
+                        )
+                    } else {
+                        PaddedSection(content = {
+                            CustomLazyColumn {
 
-                                    item {
-                                        CustomLazyRow {
-                                            items(editableCartItems.size) { index ->
-                                                val item = editableCartItems[index]
-                                                val isSelected = selectedItemIndex == index
+                                // Header
+                                item {
+                                    Text(
+                                        text = if (isPaymentTriggered)
+                                            "Payment locked (${paymentItems.size} items)"
+                                        else
+                                            "Review items (${editableCartItems.size})",
+                                        style = windowSizeConstant.titleTextStyle,
+                                        fontWeight = FontWeight.SemiBold,
+                                        modifier = Modifier.padding(bottom = windowSizeConstant.normalVerticalPadding)
+                                    )
+                                }
 
-                                                Card(
-                                                    modifier = Modifier
-                                                        .width(customSpacing.custom180)
-                                                        .height(windowSizeConstant.customImageHeight + windowSizeConstant.baseVerticalPadding * 4)
-                                                     .clickable { selectedItemIndex = index },
-                                                    colors = CardDefaults.cardColors(
-                                                        containerColor = if (isSelected)
-                                                            MaterialTheme.colorScheme.primaryContainer
-                                                        else
-                                                            MaterialTheme.colorScheme.surfaceVariant
-                                                    ),
-                                                    border = if (isSelected)
-                                                        BorderStroke(
-                                                            windowSizeConstant.borderSize,
-                                                            MaterialTheme.colorScheme.primary
-                                                        )
-                                                    else null
-                                                ) {
-                                                    Column(
-                                                        modifier = Modifier
-                                                            .fillMaxSize()
-                                                            .padding(windowSizeConstant.normalVerticalPadding),
-                                                        horizontalAlignment = Alignment.CenterHorizontally
-                                                    ) {
-                                                        // Constrain image to a square area to preserve aspect ratio
-                                                        CustomImageContainer(
-                                                            data = cloudinaryHelper.getImageUrl(item.imageUrl),
-                                                            contentDescription = item.productName,
-                                                            modifier = Modifier
-                                                                .height(windowSizeConstant.customImageHeight)
-                                                                .width(customSpacing.custom120)
-                                                                .clip(CustomShape.mediumShape())
-                                                        )
-
-                                                        CustomSpacer(
-                                                            modifier = Modifier.height(
-                                                                windowSizeConstant.baseVerticalPadding
-                                                            )
-                                                        )
-
-                                                        Text(
-                                                            text = item.productName,
-                                                            style = windowSizeConstant.bodyTextStyle,
-                                                            fontWeight = FontWeight.Medium,
-                                                            maxLines = 1,
-                                                            overflow = TextOverflow.Ellipsis,
-                                                            textAlign = TextAlign.Center
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    // Selected Product Details
-                                    item {
-                                        if (selectedItemIndex in editableCartItems.indices) {
-                                            val selectedItem = editableCartItems[selectedItemIndex]
-
-                                            CustomSpacer()
-
-                                            // EDITABLE PRODUCT DETAILS CARD
-                                            Card(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                colors = CardDefaults.cardColors(
-                                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                                                )
-                                            ) {
-                                                Column(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(windowSizeConstant.basePadding),
-                                                    verticalArrangement = Arrangement.spacedBy(
-                                                        windowSizeConstant.baseVerticalPadding
-                                                    )
-                                                ) {
-                                                    DetailRow(
-                                                        label = "Brand",
-                                                        value = selectedItem.brand
-                                                    )
-
-                                                    if (selectedItem.sizes.isNotEmpty()) {
-                                                        EditableDetailRow(
-                                                            label = "Size",
-                                                            value = selectedItem.selectedSize.ifEmpty { "Not selected" },
-                                                            onEditClick = {
-                                                                currentEditingItemIndex =
-                                                                    selectedItemIndex
-                                                                showSizeDialog = true
-                                                            }
-                                                        )
-                                                    }
-
-                                                    if (selectedItem.colors.isNotEmpty()) {
-                                                        EditableDetailRow(
-                                                            label = "Color",
-                                                            value = selectedItem.selectedColor.ifEmpty { "Not selected" },
-                                                            onEditClick = {
-                                                                currentEditingItemIndex =
-                                                                    selectedItemIndex
-                                                                showColorDialog = true
-                                                            }
-                                                        )
-                                                    }
-
-                                                    DetailRow(
-                                                        label = "Quantity",
-                                                        value = "${selectedItem.quantity}"
-                                                    )
-
-                                                    EditableDetailRow(
-                                                        label = "Shipping",
-                                                        value = selectedItem.selectedShipment.ifEmpty { "Not selected" },
-                                                        valueColor = if (selectedItem.shipmentCost == 0.0)
-                                                            colors.green
-                                                        else
-                                                            MaterialTheme.colorScheme.onSurface,
-                                                        onEditClick = {
-                                                            currentEditingItemIndex =
-                                                                selectedItemIndex
-                                                            showShipmentDialog = true
-                                                        }
-                                                    )
-
-                                                    DetailRow(
-                                                        label = "Shipping Cost",
-                                                        value = if (selectedItem.shipmentCost == 0.0)
-                                                            "FREE"
-                                                        else
-                                                            formatPrice(selectedItem.shipmentCost),
-                                                        valueColor = if (selectedItem.shipmentCost == 0.0)
-                                                            colors.green
-                                                        else
-                                                            MaterialTheme.colorScheme.onSurface
-                                                    )
-
-                                                    DetailRow(
-                                                        label = "Item Price",
-                                                        value = formatPrice(selectedItem.price)
-                                                    )
-
-                                                    DetailRow(
-                                                        label = "Subtotal",
-                                                        value = formatPrice(selectedItem.price * selectedItem.quantity),
-                                                        labelStyle = MaterialTheme.typography.titleMedium,
-                                                        valueStyle = MaterialTheme.typography.titleMedium,
-                                                        fontWeight = FontWeight.Bold
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    // Grand Total Card
+                                // Locked banner
+                                if (isPaymentTriggered) {
                                     item {
                                         Card(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(vertical = windowSizeConstant.baseVerticalPadding),
+                                                .padding(bottom = windowSizeConstant.baseVerticalPadding),
                                             colors = CardDefaults.cardColors(
-                                                containerColor = MaterialTheme.colorScheme.secondaryContainer
+                                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                                            )
+                                        ) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(windowSizeConstant.basePadding),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                CustomIcon(
+                                                    icon = Icons.Filled.Lock,
+                                                    contentDescription = "Payment locked",
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                                CustomSpacer(modifier = Modifier.width(windowSizeConstant.baseVerticalPadding))
+                                                Text(
+                                                    text = "Order details are locked while secure payment is being prepared.",
+                                                    style = windowSizeConstant.bodyTextStyle,
+                                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Image carousel — error border on items with missing fields
+                                item {
+                                    CustomLazyRow {
+                                        items(paymentItems.size) { index ->
+                                            val item = paymentItems[index]
+                                            val isSelected = selectedItemIndex == index
+                                            val hasErrors = validation.itemFieldErrors.containsKey(index)
+
+                                            Card(
+                                                modifier = Modifier
+                                                    .height(windowSizeConstant.customImageHeight)
+                                                    .width(windowSizeConstant.carouselImageWidth)
+                                                    .clickable { selectedItemIndex = index },
+                                                colors = CardDefaults.cardColors(
+                                                    containerColor = if (isSelected)
+                                                        MaterialTheme.colorScheme.primaryContainer
+                                                    else
+                                                        MaterialTheme.colorScheme.surfaceVariant
+                                                ),
+                                                border = when {
+                                                    hasErrors && !isPaymentTriggered -> BorderStroke(
+                                                        windowSizeConstant.borderSize,
+                                                        MaterialTheme.colorScheme.error
+                                                    )
+                                                    isSelected -> BorderStroke(
+                                                        windowSizeConstant.borderSize,
+                                                        MaterialTheme.colorScheme.primary
+                                                    )
+                                                    else -> null
+                                                }
+                                            ) {
+                                                CustomImageContainer(
+                                                    data = cloudinaryHelper.getImageUrl(item.imageUrl),
+                                                    contentDescription = item.productName,
+                                                    modifier = Modifier
+                                                        .height(windowSizeConstant.customImageHeight)
+                                                        .width(windowSizeConstant.carouselImageWidth)
+                                                        .clip(CustomShape.mediumShape())
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Selected product details
+                                item {
+                                    if (selectedItemIndex in paymentItems.indices) {
+                                        val selectedItem = paymentItems[selectedItemIndex]
+                                        val selectedItemFieldErrors =
+                                            validation.itemFieldErrors[selectedItemIndex] ?: emptySet()
+
+                                        CustomSpacer()
+
+                                        Card(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = CardDefaults.cardColors(
+                                                containerColor = MaterialTheme.colorScheme.surfaceContainer
                                             )
                                         ) {
                                             Column(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .padding(windowSizeConstant.basePadding)
+                                                    .padding(windowSizeConstant.basePadding),
+                                                verticalArrangement = Arrangement.spacedBy(
+                                                    windowSizeConstant.baseVerticalPadding
+                                                )
                                             ) {
-                                                val itemsTotal =
-                                                    editableCartItems.sumOf { it.price * it.quantity }
-                                                val shippingTotal =
-                                                    editableCartItems.sumOf { it.shipmentCost }
-                                                val grandTotal = itemsTotal + shippingTotal
+                                                DetailRow(label = "Product name", value = selectedItem.productName)
+                                                DetailRow(label = "Brand", value = selectedItem.brand)
 
-                                                DetailRow(
-                                                    label = stringResource(R.string.items_total),
-                                                    value = formatPrice(itemsTotal)
-                                                )
-
-                                                CustomSpacer()
-
-                                                DetailRow(
-                                                    label = stringResource(R.string.shipping_total),
-                                                    value = if (shippingTotal == 0.0) "Normal Shipping" else formatPrice(
-                                                        shippingTotal
-                                                    ),
-                                                    valueColor = if (shippingTotal == 0.0) colors.green else MaterialTheme.colorScheme.onSurface
-                                                )
-
-                                                CustomSpacer(
-                                                    modifier = Modifier.height(
-                                                        windowSizeConstant.baseVerticalPadding
-                                                    )
-                                                )
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Text(
-                                                        text = stringResource(R.string.total_amount),
-                                                        style = windowSizeConstant.titleTextStyle,
-                                                        fontWeight = FontWeight.Bold
-                                                    )
-
-                                                    CustomSpacer(
-                                                        modifier = Modifier.height(
-                                                            windowSizeConstant.baseVerticalPadding
-                                                        )
-                                                    )
-
-                                                    Text(
-                                                        text = formatPrice(grandTotal),
-                                                        style = windowSizeConstant.titleTextStyle,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = MaterialTheme.colorScheme.primary
+                                                // Size
+                                                if (selectedItem.sizes.isNotEmpty()) {
+                                                    EditableDetailRow(
+                                                        label = "Size",
+                                                        value = selectedItem.selectedSize.ifEmpty { "Not selected" },
+                                                        isError = "size" in selectedItemFieldErrors,
+                                                        onEditClick = {
+                                                            if (!isPaymentTriggered) {
+                                                                currentEditingItemIndex = selectedItemIndex
+                                                                showSizeDialog = true
+                                                            }
+                                                        },
+                                                        enabled = !isPaymentTriggered
                                                     )
                                                 }
-                                            }
-                                        }
 
-                                        CustomSpacer()
-                                    }
-
-                                    // Payment Button Section
-                                    when (paymentState) {
-                                        is PaymentState.Ready -> {
-                                            checkoutSummary?.let { summary ->
-                                                if (summary.isPrimeOrder) {
-                                                    item {
-                                                        PrimeSavingsSummaryCard(
-                                                            summary = summary,
-                                                            modifier = Modifier.padding(vertical = windowSizeConstant.baseVerticalPadding)
-                                                        )
-
-                                                        OrderSummaryWithPrime(
-                                                            summary = summary,
-                                                            modifier = Modifier.padding(vertical = windowSizeConstant.baseVerticalPadding)
-                                                        )
-                                                    }
+                                                // Color
+                                                if (selectedItem.colors.isNotEmpty()) {
+                                                    EditableDetailRow(
+                                                        label = "Color",
+                                                        value = selectedItem.selectedColor.ifEmpty { "Not selected" },
+                                                        isError = "color" in selectedItemFieldErrors,
+                                                        onEditClick = {
+                                                            if (!isPaymentTriggered) {
+                                                                currentEditingItemIndex = selectedItemIndex
+                                                                showColorDialog = true
+                                                            }
+                                                        },
+                                                        enabled = !isPaymentTriggered
+                                                    )
                                                 }
-                                            }
 
-                                            item {
-                                                PaddedSection(
-                                                    alignment = Alignment.CenterHorizontally,
-                                                    content = {
-                                                        if (selectedAddress == null) {
-                                                            Card(
-                                                                modifier = Modifier.fillMaxWidth(),
-                                                                colors = CardDefaults.cardColors(
-                                                                    containerColor = MaterialTheme.colorScheme.errorContainer
-                                                                )
-                                                            ) {
-                                                                Row(
-                                                                    modifier = Modifier
-                                                                        .fillMaxWidth()
-                                                                        .padding(windowSizeConstant.basePadding),
-                                                                    verticalAlignment = Alignment.CenterVertically
-                                                                ) {
-                                                                    CustomIcon(
-                                                                        icon = Icons.Filled.Warning,
-                                                                        contentDescription = "Warning",
-                                                                        tint = colors.orange
-                                                                    )
-
-                                                                    CustomSpacer(
-                                                                        modifier = Modifier.width(
-                                                                            windowSizeConstant.baseVerticalPadding
-                                                                        )
-                                                                    )
-
-                                                                    Text(
-                                                                        text = stringResource(R.string.select_delivery_address_to_proceed),
-                                                                        style = windowSizeConstant.bodyTextStyle,
-                                                                        color = MaterialTheme.colorScheme.onErrorContainer,
-                                                                    )
-                                                                }
-                                                            }
-                                                        } else if (sheetConfig != null) {
-                                                            CustomButton(
-                                                                onClick = {
-                                                                    sheetConfig?.let { config ->
-                                                                        paymentSheet.presentWithPaymentIntent(
-                                                                            paymentIntentClientSecret = config.paymentIntent,
-                                                                            configuration = PaymentSheet.Configuration(
-                                                                                merchantDisplayName = "Doritaas",
-                                                                                customer = PaymentSheet.CustomerConfiguration(
-                                                                                    id = config.customer,
-                                                                                    ephemeralKeySecret = config.ephemeralKey
-                                                                                )
-                                                                            )
-                                                                        )
-                                                                    }
-                                                                },
-                                                                icon = ButtonIcon.Vector(imageVector = Icons.Filled.Lock),
-                                                                strLabel = "Proceed to Pay ${
-                                                                    formatPrice(
-                                                                        checkoutSummary?.total ?: totalAmount
-                                                                    )
-                                                                }",
-                                                                contentDescription = "payment",
-                                                                enabled = selectedAddress != null
-                                                            )
-
-                                                            CustomSpacer()
-
-                                                            Row(
-                                                                horizontalArrangement = Arrangement.Center,
-                                                                verticalAlignment = Alignment.CenterVertically
-                                                            ) {
-                                                                CustomIcon(
-                                                                    icon = Icons.Filled.Security,
-                                                                    contentDescription = "Secure payment",
-                                                                    iconSize = windowSizeConstant.basePadding,
-                                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                                                )
-
-                                                                CustomSpacer(
-                                                                    modifier = Modifier.width(
-                                                                        windowSizeConstant.baseVerticalPadding
-                                                                    )
-                                                                )
-
-                                                                Text(
-                                                                    text = stringResource(R.string.secure_payment_powered_by_stripe),
-                                                                    style = windowSizeConstant.labelTextStyle,
-                                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                                )
-                                                            }
-                                                            CustomSpacer()
-
-                                                        } else {
-                                                            // sheetConfig still loading, show a small loader
-                                                            CustomCircularProgressIndicator()
+                                                // Quantity
+                                                EditableDetailRow(
+                                                    label = "Quantity",
+                                                    value = "${selectedItem.quantity}",
+                                                    onEditClick = {
+                                                        if (!isPaymentTriggered) {
+                                                            currentEditingItemIndex = selectedItemIndex
+                                                            showQuantityDialog = true
                                                         }
-                                                    }
-                                                )
-                                            }
-
-                                            item {
-                                                CustomSpacer(
-                                                    modifier = Modifier.height(
-                                                        windowSizeConstant.customSpacerMedium
-                                                    )
-                                                )
-                                            }
-                                        }
-
-                                        is PaymentState.Success -> {
-                                            item {
-                                                Column(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(horizontal = windowSizeConstant.basePadding),
-                                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                                    verticalArrangement = Arrangement.Center
-                                                ) {
-                                                    CustomIcon(
-                                                        icon = Icons.Filled.CheckCircle,
-                                                        contentDescription = "Success",
-                                                        tint = colors.customColor5,
-                                                    )
-
-                                                    CustomSpacer()
-
-                                                    Text(
-                                                        text = stringResource(R.string.payment_successful),
-                                                        style = windowSizeConstant.titleTextStyle,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = colors.customColor5
-                                                    )
-
-                                                    CustomSpacer(
-                                                        modifier = Modifier.height(
-                                                            windowSizeConstant.baseVerticalPadding
-                                                        )
-                                                    )
-
-                                                    if (orderCreated != null) {
-                                                        Text(
-                                                            text = "Order #${
-                                                                orderCreated?.id?.take(
-                                                                    8
-                                                                )
-                                                            }... created",
-                                                            style = windowSizeConstant.bodyTextStyle,
-                                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                        )
-
-                                                        CustomSpacer(
-                                                            modifier = Modifier.height(
-                                                                windowSizeConstant.baseVerticalPadding
-                                                            )
-                                                        )
-
-                                                        Text(
-                                                            text = stringResource(R.string.order_details),
-                                                            style = windowSizeConstant.labelTextStyle,
-                                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                        )
-                                                    } else {
-                                                        CustomCircularProgressIndicator(
-                                                            modifier = Modifier.size(customSpacing.custom24),
-                                                            strokeWidth = customSpacing.custom2,
-                                                        )
-
-                                                        CustomSpacer(
-                                                            modifier = Modifier.height(
-                                                                windowSizeConstant.baseVerticalPadding
-                                                            )
-                                                        )
-
-                                                        Text(
-                                                            text = stringResource(R.string.creating_order),
-                                                            style = windowSizeConstant.bodyTextStyle,
-                                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                        )
-                                                    }
-                                                }
-                                            }
-
-                                            item {
-                                                CustomSpacer(
-                                                    modifier = Modifier.height(
-                                                        windowSizeConstant.customSpacerMedium
-                                                    )
-                                                )
-                                            }
-                                        }
-
-                                        else -> {
-                                            item {
-                                                CustomEmptyState(
-                                                    btnLabel = R.string.retry,
-                                                    titleStr = "An error occurred during payment. Please try again.",
-                                                    onBtnClick = {
-                                                        viewModel.fetchConfiguration(
-                                                            customerEmail = customerEmail,
-                                                            customerName = customerName,
-                                                            productItems = editableCartItems,
-                                                            deliveryAddress = selectedAddress
-                                                        )
                                                     },
-                                                    leadingIcon = Icons.Filled.Error,
-                                                    enableScroll = false
-                                                )
-                                            }
-                                            item {
-                                                CustomSpacer(
-                                                    modifier = Modifier.height(
-                                                        windowSizeConstant.customSpacerMedium
-                                                    )
+                                                    enabled = !isPaymentTriggered
                                                 )
 
+                                                // Shipping
+                                                EditableDetailRow(
+                                                    label = "Shipping",
+                                                    value = selectedItem.selectedShipment.ifEmpty { "Not selected" },
+                                                    isError = "shipping" in selectedItemFieldErrors,
+                                                    valueColor = when {
+                                                        "shipping" in selectedItemFieldErrors ->
+                                                            MaterialTheme.colorScheme.error
+                                                        selectedItem.shipmentCost == 0.0 -> colors.green
+                                                        else -> MaterialTheme.colorScheme.onSurface
+                                                    },
+                                                    onEditClick = {
+                                                        if (!isPaymentTriggered) {
+                                                            currentEditingItemIndex = selectedItemIndex
+                                                            showShipmentDialog = true
+                                                        }
+                                                    },
+                                                    enabled = !isPaymentTriggered
+                                                )
+
+                                                // Delivery address (fixed: smart add vs edit routing)
+                                                EditableDetailRow(
+                                                    label = "Delivery address",
+                                                    value = if (paymentAddress != null)
+                                                        "${paymentAddress.addressLine1}, ${paymentAddress.city}"
+                                                    else
+                                                        "Not selected",
+                                                    isError = paymentAddress == null,
+                                                    valueColor = if (paymentAddress == null)
+                                                        MaterialTheme.colorScheme.error
+                                                    else
+                                                        MaterialTheme.colorScheme.onSurface,
+                                                    onEditClick = {
+                                                        if (!isPaymentTriggered) {
+                                                            if (addressState.addresses.isNotEmpty()) {
+                                                                showAddressSelectionDialog = true
+                                                            } else {
+                                                                showAddAddressDialog = true
+                                                            }
+                                                        }
+                                                    },
+                                                    enabled = !isPaymentTriggered
+                                                )
+
+                                                DetailRow(
+                                                    label = "Item Price",
+                                                    value = formatPrice(selectedItem.price)
+                                                )
+
+                                                DetailRow(
+                                                    label = "Subtotal",
+                                                    value = formatPrice(selectedItem.price * selectedItem.quantity),
+                                                    labelStyle = windowSizeConstant.titleTextStyle,
+                                                    valueStyle = windowSizeConstant.titleTextStyle,
+                                                    fontWeight = FontWeight.Bold
+                                                )
                                             }
                                         }
                                     }
                                 }
+
+                                // Payment / success section
+                                if (paymentState is PaymentState.Success) {
+                                    item {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = windowSizeConstant.basePadding),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center
+                                        ) {
+                                            CustomIcon(
+                                                icon = Icons.Filled.CheckCircle,
+                                                contentDescription = "Success",
+                                                tint = colors.customColor5,
+                                            )
+                                            CustomSpacer()
+                                            Text(
+                                                text = stringResource(R.string.payment_successful),
+                                                style = windowSizeConstant.titleTextStyle,
+                                                fontWeight = FontWeight.Bold,
+                                                color = colors.customColor5
+                                            )
+                                            CustomSpacer(modifier = Modifier.height(windowSizeConstant.baseVerticalPadding))
+
+                                            if (orderCreated != null) {
+                                                Text(
+                                                    text = "Order #${orderCreated?.id?.take(8)}... created",
+                                                    style = windowSizeConstant.bodyTextStyle,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                                CustomSpacer(modifier = Modifier.height(windowSizeConstant.baseVerticalPadding))
+                                                Text(
+                                                    text = stringResource(R.string.order_details),
+                                                    style = windowSizeConstant.labelTextStyle,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            } else {
+                                                CustomCircularProgressIndicator(
+                                                    modifier = Modifier.size(customSpacing.custom24),
+                                                    strokeWidth = customSpacing.custom2,
+                                                )
+                                                CustomSpacer(modifier = Modifier.height(windowSizeConstant.baseVerticalPadding))
+                                                Text(
+                                                    text = stringResource(R.string.creating_order),
+                                                    style = windowSizeConstant.bodyTextStyle,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    item { CustomSpacer(modifier = Modifier.height(windowSizeConstant.customSpacerMedium)) }
+                                } else {
+                                    // Prime order summary (single merged card)
+                                    checkoutSummary?.let { summary ->
+                                        if (summary.isPrimeOrder) {
+                                            item {
+                                                PrimeOrderSummaryCard(
+                                                    summary = summary,
+                                                    modifier = Modifier.padding(vertical = windowSizeConstant.baseVerticalPadding)
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    // Validation summary + pay button
+                                    item {
+                                        PaddedSection(
+                                            alignment = Alignment.CenterHorizontally,
+                                            content = {
+                                                if (!validation.isValid) {
+                                                    // Error summary card
+                                                    Card(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        colors = CardDefaults.cardColors(
+                                                            containerColor = MaterialTheme.colorScheme.errorContainer
+                                                        )
+                                                    ) {
+                                                        Column(
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .padding(windowSizeConstant.basePadding),
+                                                            verticalArrangement = Arrangement.spacedBy(
+                                                                windowSizeConstant.smallVerticalPadding
+                                                            )
+                                                        ) {
+                                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                                CustomIcon(
+                                                                    icon = Icons.Filled.Warning,
+                                                                    contentDescription = "Validation errors",
+                                                                    tint = MaterialTheme.colorScheme.error
+                                                                )
+                                                                CustomSpacer(modifier = Modifier.width(windowSizeConstant.baseVerticalPadding))
+                                                                Text(
+                                                                    text = "Complete the following before paying:",
+                                                                    style = windowSizeConstant.bodyTextStyle,
+                                                                    fontWeight = FontWeight.SemiBold,
+                                                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                                                )
+                                                            }
+                                                            validation.errors.forEach { error ->
+                                                                Row(
+                                                                    verticalAlignment = Alignment.Top,
+                                                                    modifier = Modifier.padding(start = windowSizeConstant.basePadding)
+                                                                ) {
+                                                                    Text(
+                                                                        text = "• ",
+                                                                        style = windowSizeConstant.bodyTextStyle,
+                                                                        color = MaterialTheme.colorScheme.error
+                                                                    )
+                                                                    Text(
+                                                                        text = error,
+                                                                        style = windowSizeConstant.bodyTextStyle,
+                                                                        color = MaterialTheme.colorScheme.onErrorContainer
+                                                                    )
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+
+                                                    CustomSpacer()
+
+                                                    // Visually disabled pay button
+                                                    CustomButton(
+                                                        onClick = { /* blocked — validation failed */ },
+                                                        icon = ButtonIcon.Vector(imageVector = Icons.Filled.Lock),
+                                                        strLabel = "Proceed to Pay ${formatPrice(checkoutSummary?.total ?: totalAmount)}",
+                                                        contentDescription = "payment",
+                                                        enabled = false
+                                                    )
+                                                } else {
+                                                    // All fields valid — show loading or button
+                                                    if (isPaymentTriggered &&
+                                                        (paymentState is PaymentState.FetchConfig || paymentState is PaymentState.Loading)
+                                                    ) {
+                                                        Column(
+                                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                                            verticalArrangement = Arrangement.Center,
+                                                            modifier = Modifier.padding(vertical = windowSizeConstant.baseVerticalPadding)
+                                                        ) {
+                                                            CustomCircularProgressIndicator()
+                                                            CustomSpacer()
+                                                            Text(
+                                                                text = "Securing payment session...",
+                                                                style = windowSizeConstant.labelTextStyle,
+                                                                color = MaterialTheme.colorScheme.primary
+                                                            )
+                                                        }
+                                                    } else {
+                                                        CustomButton(
+                                                            onClick = {
+                                                                if (!isPaymentTriggered) {
+                                                                    isPaymentTriggered = true
+                                                                    lockedCheckoutItems = editableCartItems
+                                                                    lockedDeliveryAddress = selectedAddress
+                                                                    if (editableCartItems.isNotEmpty()) {
+                                                                        viewModel.fetchConfiguration(
+                                                                            customerEmail = customerEmail,
+                                                                            customerName = customerName,
+                                                                            productItems = editableCartItems,
+                                                                            deliveryAddress = selectedAddress
+                                                                        )
+                                                                    } else {
+                                                                        viewModel.fetchConfigurationWithAmount(currentAmount)
+                                                                    }
+                                                                }
+                                                            },
+                                                            icon = ButtonIcon.Vector(imageVector = Icons.Filled.Lock),
+                                                            strLabel = "Proceed to Pay ${formatPrice(checkoutSummary?.total ?: totalAmount)}",
+                                                            contentDescription = "payment",
+                                                            enabled = !isPaymentTriggered
+                                                        )
+                                                    }
+                                                }
+
+                                                CustomSpacer()
+
+                                                Row(
+                                                    horizontalArrangement = Arrangement.Center,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    CustomIcon(
+                                                        icon = Icons.Filled.Security,
+                                                        contentDescription = "Secure payment",
+                                                        iconSize = windowSizeConstant.basePadding,
+                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                    CustomSpacer(modifier = Modifier.width(windowSizeConstant.baseVerticalPadding))
+                                                    Text(
+                                                        text = stringResource(R.string.secure_payment_powered_by_stripe),
+                                                        style = windowSizeConstant.labelTextStyle,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                                CustomSpacer()
+                                            }
+                                        )
+                                    }
+
+                                    item { CustomSpacer(modifier = Modifier.height(windowSizeConstant.customSpacerSmall)) }
+                                }
                             }
-                            )
-                        }
-                    }
-                }
-            },
-            actions = {
-                when (paymentState) {
-                    is PaymentState.FetchConfig -> TopBarActionsShimmer()
-                    else -> {
-                        NetworkIndicator(networkState = networkState)
-                        ButtonIconComposable(
-                            tint = MaterialTheme.colorScheme.primary,
-                            buttonIcon = ButtonIcon.Vector(Icons.Filled.LocationOn),
-                            onClick = { showCustomerDetailsDialog = true },
-                            contentDescription = "Delivery address"
-                        )
+                        })
                     }
                 }
             }
         )
 
-        // Loading overlay
+        // Full-screen loading overlay
         if (isLoading) {
             Box(
                 modifier = Modifier
@@ -960,18 +876,14 @@ fun PaymentScreen(
                             strokeWidth = windowSizeConstant.smallVerticalPadding,
                             color = MaterialTheme.colorScheme.primary
                         )
-
                         CustomSpacer()
-
                         Text(
                             text = stringResource(R.string.processing_stripe_payment),
                             style = windowSizeConstant.titleTextStyle,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurface
                         )
-
                         CustomSpacer(modifier = Modifier.height(windowSizeConstant.normalVerticalPadding))
-
                         Text(
                             text = stringResource(R.string.setting_up_secure_payment),
                             style = windowSizeConstant.titleTextStyle,
@@ -983,70 +895,7 @@ fun PaymentScreen(
             }
         }
 
-        // All dialog code remains the same
-        if (showShipmentDialog && currentEditingItemIndex >= 0) {
-            val currentItem = editableCartItems[currentEditingItemIndex]
-
-            ShipmentSelectionDialog(
-                shipmentOptions = productUiState.shipmentItem,
-                selectedShipment = currentItem.selectedShipment,
-                onShipmentSelected = { shipment ->
-                    editableCartItems = editableCartItems.toMutableList().apply {
-                        this[currentEditingItemIndex] = currentItem.copy(
-                            selectedShipment = shipment.name,
-                            shipmentCost = shipment.price
-                        )
-                    }
-                    showShipmentDialog = false
-                    currentEditingItemIndex = -1
-                },
-                onDismiss = {
-                    showShipmentDialog = false
-                    currentEditingItemIndex = -1
-                }
-            )
-        }
-
-        if (showSizeDialog && currentEditingItemIndex >= 0) {
-            val currentItem = editableCartItems[currentEditingItemIndex]
-
-            SizeSelectionDialog(
-                sizes = currentItem.sizes,
-                selectedSize = currentItem.selectedSize,
-                onSizeSelected = { size ->
-                    editableCartItems = editableCartItems.toMutableList().apply {
-                        this[currentEditingItemIndex] = currentItem.copy(selectedSize = size)
-                    }
-                    showSizeDialog = false
-                    currentEditingItemIndex = -1
-                },
-                onDismiss = {
-                    showSizeDialog = false
-                    currentEditingItemIndex = -1
-                }
-            )
-        }
-
-        if (showColorDialog && currentEditingItemIndex >= 0) {
-            val currentItem = editableCartItems[currentEditingItemIndex]
-
-            ColorSelectionDialog(
-                defaultColor = defaultColor,
-                selectedColor = currentItem.selectedColor,
-                onColorChanged = { selectedColor ->
-                    editableCartItems = editableCartItems.toMutableList().apply {
-                        this[currentEditingItemIndex] = currentItem.copy(
-                            selectedColor = selectedColor
-                        )
-                    }
-                },
-                onDismiss = {
-                    showColorDialog = false
-                    currentEditingItemIndex = -1
-                }
-            )
-        }
-
+        // Dialogs
         if (showCustomerDetailsDialog) {
             CustomerDetailsDialog(
                 customerName = customerName,
@@ -1090,51 +939,155 @@ fun PaymentScreen(
                 }
             )
         }
+
+        if (showShipmentDialog && currentEditingItemIndex in editableCartItems.indices) {
+            val currentItem = editableCartItems[currentEditingItemIndex]
+            ShipmentSelectionDialog(
+                shipmentOptions = productUiState.shipmentItem,
+                selectedShipment = currentItem.selectedShipment,
+                onShipmentSelected = { shipment ->
+                    editableCartItems = editableCartItems.toMutableList().apply {
+                        this[currentEditingItemIndex] = currentItem.copy(
+                            selectedShipment = shipment.name,
+                            shipmentCost = shipment.price
+                        )
+                    }
+                    showShipmentDialog = false
+                    currentEditingItemIndex = -1
+                },
+                onDismiss = { showShipmentDialog = false; currentEditingItemIndex = -1 }
+            )
+        }
+
+        if (showSizeDialog && currentEditingItemIndex in editableCartItems.indices) {
+            val currentItem = editableCartItems[currentEditingItemIndex]
+            SizeSelectionDialog(
+                sizes = currentItem.sizes,
+                selectedSize = currentItem.selectedSize,
+                onSizeSelected = { size ->
+                    editableCartItems = editableCartItems.toMutableList().apply {
+                        this[currentEditingItemIndex] = currentItem.copy(selectedSize = size)
+                    }
+                    showSizeDialog = false
+                    currentEditingItemIndex = -1
+                },
+                onDismiss = { showSizeDialog = false; currentEditingItemIndex = -1 }
+            )
+        }
+
+        if (showColorDialog && currentEditingItemIndex in editableCartItems.indices) {
+            val currentItem = editableCartItems[currentEditingItemIndex]
+            ColorSelectionDialog(
+                defaultColor = currentItem.colors.ifEmpty { defaultColor },
+                selectedColor = currentItem.selectedColor,
+                onColorChanged = { color ->
+                    editableCartItems = editableCartItems.toMutableList().apply {
+                        this[currentEditingItemIndex] = currentItem.copy(selectedColor = color)
+                    }
+                    showColorDialog = false
+                    currentEditingItemIndex = -1
+                },
+                onDismiss = { showColorDialog = false; currentEditingItemIndex = -1 }
+            )
+        }
+
+        if (showQuantityDialog && currentEditingItemIndex in editableCartItems.indices) {
+            val currentItem = editableCartItems[currentEditingItemIndex]
+            QuantitySelectionDialog(
+                selectedQuantity = currentItem.quantity,
+                onQuantitySelected = { quantity ->
+                    editableCartItems = editableCartItems.toMutableList().apply {
+                        this[currentEditingItemIndex] = currentItem.copy(quantity = quantity)
+                    }
+                    showQuantityDialog = false
+                    currentEditingItemIndex = -1
+                },
+                onDismiss = { showQuantityDialog = false; currentEditingItemIndex = -1 }
+            )
+        }
     }
 }
 
-// ============================================
-// HELPER COMPOSABLE
-// ============================================
+// ============================================================
+// HELPER COMPOSABLES
+// ============================================================
 
 @Composable
 fun EditableDetailRow(
     label: String,
     value: String,
     valueColor: Color = MaterialTheme.colorScheme.onSurface,
-    onEditClick: () -> Unit
+    isError: Boolean = false,
+    onEditClick: () -> Unit,
+    enabled: Boolean = true
 ) {
     val windowSizeClass = LocalWindowSizeConstant.current
+    val resolvedValueColor = if (isError) MaterialTheme.colorScheme.error else valueColor
+    // Use a consistent icon size that is clearly visible — not basePadding which is too small
+    val actionIconSize = windowSizeClass.iconSize
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onEditClick() },
+            .then(if (enabled) Modifier.clickable { onEditClick() } else Modifier),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = label,
-            style = windowSizeClass.bodyTextStyle,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        // Label + required error badge
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = label,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = windowSizeClass.bodyTextStyle,
+                color = if (isError)
+                    MaterialTheme.colorScheme.error
+                else
+                    MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (isError) {
+                CustomSpacer(modifier = Modifier.width(windowSizeClass.smallVerticalPadding))
+                CustomIcon(
+                    icon = Icons.Filled.Error,
+                    contentDescription = "Required",
+                    iconSize = actionIconSize,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(windowSizeClass.smallVerticalPadding)
         ) {
             Text(
                 text = value,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 style = windowSizeClass.bodyTextStyle,
-                color = valueColor,
+                color = resolvedValueColor,
                 fontWeight = FontWeight.Medium
             )
 
-            CustomIcon(
-                icon = Icons.Filled.Edit,
-                contentDescription = "Edit $label",
-                iconSize = windowSizeClass.basePadding,
-                tint = MaterialTheme.colorScheme.primary
-            )
+            if (enabled) {
+                CustomIcon(
+                    // Add icon when nothing is selected, Edit icon when value exists
+                    icon = if (isError) Icons.Filled.Add else Icons.Filled.Edit,
+                    contentDescription = if (isError) "Add $label" else "Edit $label",
+                    iconSize = actionIconSize,
+                    tint = if (isError)
+                        MaterialTheme.colorScheme.error
+                    else
+                        MaterialTheme.colorScheme.primary
+                )
+            } else {
+                CustomIcon(
+                    icon = Icons.Filled.Lock,
+                    contentDescription = "$label locked",
+                    iconSize = actionIconSize,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
@@ -1143,34 +1096,24 @@ fun EditableDetailRow(
 fun DetailRow(
     label: String,
     value: String,
-    labelStyle: TextStyle = MaterialTheme.typography.bodyMedium,
-    valueStyle: TextStyle = MaterialTheme.typography.bodyMedium,
+    labelStyle: TextStyle? = null,
+    valueStyle: TextStyle? = null,
     valueColor: Color = MaterialTheme.colorScheme.onSurface,
     fontWeight: FontWeight = FontWeight.Normal
 ) {
+    val windowSizeConstant = LocalWindowSizeConstant.current
+    val labelTextStyle = labelStyle ?: windowSizeConstant.bodyTextStyle
+    val valueTextStyle = valueStyle ?: windowSizeConstant.bodyTextStyle
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = label,
-            style = labelStyle,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Text(
-            text = value,
-            style = valueStyle,
-            color = valueColor,
-            fontWeight = fontWeight
-        )
+        Text(text = label, style = labelTextStyle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(text = value, style = valueTextStyle, color = valueColor, fontWeight = fontWeight)
     }
 }
-
-// ============================================
-// SELECTION DIALOGS
-// ============================================
 
 @Composable
 fun ShipmentSelectionDialog(
@@ -1185,68 +1128,41 @@ fun ShipmentSelectionDialog(
         scrollable = false,
         onDismissRequest = onDismiss,
         icon = {
-            CustomIcon(
-                icon = Icons.Filled.LocalShipping,
-                contentDescription = "Shipping",
-                iconSize = windowSizeClass.largeIconSize
-            )
+            CustomIcon(icon = Icons.Filled.LocalShipping, contentDescription = "Shipping", iconSize = windowSizeClass.largeIconSize)
         },
         title = {
-            Text(
-                text = stringResource(R.string.shipping_option),
-                style = windowSizeClass.titleTextStyle,
-                fontWeight = FontWeight.Bold
-            )
+            Text(text = stringResource(R.string.shipping_option), style = windowSizeClass.titleTextStyle, fontWeight = FontWeight.Bold)
         },
         text = {
             CustomLazyColumn {
                 items(shipmentOptions.size) { index ->
                     val option = shipmentOptions[index]
                     Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onShipmentSelected(option) },
+                        modifier = Modifier.fillMaxWidth().clickable { onShipmentSelected(option) },
                         colors = CardDefaults.cardColors(
                             containerColor = if (selectedShipment == option.name)
                                 MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
+                            else
+                                MaterialTheme.colorScheme.surfaceVariant
                         ),
                         border = if (selectedShipment == option.name)
-                            BorderStroke(
-                                customSpacing.customHalf,
-                                MaterialTheme.colorScheme.primary
-                            )
+                            BorderStroke(customSpacing.customHalf, MaterialTheme.colorScheme.primary)
                         else null
                     ) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(customSpacing.custom16),
+                            modifier = Modifier.fillMaxWidth().padding(customSpacing.custom16),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column {
-                                Text(
-                                    text = option.name,
-                                    fontWeight = FontWeight.Medium,
-                                    style = windowSizeClass.bodyTextStyle
-                                )
-
-                                Text(
-                                    text = option.deliveryMethod,
-                                    style = windowSizeClass.bodyTextStyle,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                Text(text = option.name, fontWeight = FontWeight.Medium, style = windowSizeClass.bodyTextStyle)
+                                Text(text = option.deliveryMethod, style = windowSizeClass.bodyTextStyle, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-
                             Text(
-                                text = if (option.price == 0.0) "FREE" else "$${option.price}",
+                                text = if (option.price == 0.0) "FREE" else formatPrice(option.price),
                                 style = windowSizeClass.bodyTextStyle,
                                 fontWeight = FontWeight.Bold,
-                                color = if (option.price == 0.0)
-                                    colors.green
-                                else
-                                    MaterialTheme.colorScheme.primary
+                                color = if (option.price == 0.0) colors.green else MaterialTheme.colorScheme.primary
                             )
                         }
                     }
@@ -1254,11 +1170,7 @@ fun ShipmentSelectionDialog(
             }
         },
         confirmButton = {
-            CustomTextButton(
-                onClick = onDismiss,
-                label = R.string.cancel,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            CustomTextButton(onClick = onDismiss, label = R.string.cancel, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     )
 }
@@ -1276,39 +1188,21 @@ fun SizeSelectionDialog(
         scrollable = false,
         onDismissRequest = onDismiss,
         icon = {
-            CustomIcon(
-                icon = Icons.Filled.FormatSize,
-                contentDescription = "Size",
-                iconSize = windowSizeClass.largeIconSize
-            )
+            CustomIcon(icon = Icons.Filled.FormatSize, contentDescription = "Size", iconSize = windowSizeClass.largeIconSize)
         },
         title = {
-            Text(
-                text = stringResource(R.string.select_size),
-                style = windowSizeClass.titleTextStyle,
-                fontWeight = FontWeight.Bold
-            )
+            Text(text = stringResource(R.string.select_size), style = windowSizeClass.titleTextStyle, fontWeight = FontWeight.Bold)
         },
         text = {
             CustomLazyRow {
                 items(sizes.size) { index ->
                     val size = sizes[index]
-                    CustomFilterChip(
-                        label = size,
-                        isSelected = selectedSize == size,
-                        onClick = { onSizeSelected(size) }
-                    )
-
-
+                    CustomFilterChip(label = size, isSelected = selectedSize == size, onClick = { onSizeSelected(size) })
                 }
             }
         },
         confirmButton = {
-            CustomTextButton(
-                onClick = onDismiss,
-                label = R.string.cancel,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            CustomTextButton(onClick = onDismiss, label = R.string.cancel, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     )
 }
@@ -1324,34 +1218,29 @@ fun ColorSelectionDialog(
 
     CustomAlertDialog(
         onDismissRequest = onDismiss,
+        title = {
+            Text(stringResource(R.string.select_color, windowSizeClass.titleTextStyle), fontWeight = FontWeight.Bold)
+        },
         icon = {
-            CustomIcon(
-                icon = Icons.Filled.Warning,
-                contentDescription = "Warning",
-                iconSize = windowSizeClass.largeIconSize,
-                tint = colors.orange
-            )
+            CustomIcon(icon = Icons.Filled.ColorLens, contentDescription = "Change colors", iconSize = windowSizeClass.largeIconSize, tint = colors.orange)
         },
         text = {
             ProductColorSelection(
                 multiSelect = false,
                 selectedColor = selectedColor,
-                onColorSelected = { color ->
-                    color?.let { onColorChanged(it) }
-                },
+                onColorSelected = { color -> color?.let { onColorChanged(it) } },
                 defaultColors = defaultColor
             )
-
         },
         confirmButton = {
-            CustomTextButton(
-                onClick = onDismiss,
-                label = R.string.confirm,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            CustomTextButton(onClick = onDismiss, label = R.string.confirm, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     )
 }
+
+// ============================================================
+// ADDRESS DIALOGS
+// ============================================================
 
 @Composable
 fun CustomerDetailsDialog(
@@ -1368,38 +1257,19 @@ fun CustomerDetailsDialog(
     CustomAlertDialog(
         onDismissRequest = onDismiss,
         icon = {
-            CustomIcon(
-                icon = Icons.Filled.PersonAdd,
-                contentDescription = "Person",
-                iconSize = windowSizeClass.largeIconSize
-            )
+            CustomIcon(icon = Icons.Filled.PersonAdd, contentDescription = "Person", iconSize = windowSizeClass.largeIconSize)
         },
         title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                CustomIcon(
-                    icon = Icons.Filled.Person,
-                    contentDescription = "Person",
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-
-                CustomSpacer(modifier = Modifier.width(windowSizeClass.basePadding))
-
-                Text(
-                    stringResource(R.string.customer_order_title),
-                    style = windowSizeClass.titleTextStyle
-                )
-            }
+            Text(stringResource(R.string.customer_order_title), style = windowSizeClass.titleTextStyle)
         },
         text = {
             Column {
-                // Customer Information Section
                 Text(
                     text = stringResource(R.string.customer_information),
                     style = windowSizeClass.bodyTextStyle,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(bottom = windowSizeClass.baseVerticalPadding)
                 )
-
                 CustomSpacer(modifier = Modifier.height(windowSizeClass.smallVerticalPadding))
 
                 customerName?.let {
@@ -1409,7 +1279,6 @@ fun CustomerDetailsDialog(
                         modifier = Modifier.padding(bottom = windowSizeClass.smallVerticalPadding)
                     )
                 }
-
                 customerEmail?.let {
                     Text(
                         text = "Email: $it",
@@ -1419,7 +1288,6 @@ fun CustomerDetailsDialog(
                     )
                 }
 
-                // Delivery Address Section
                 Text(
                     text = stringResource(R.string.delivery_address),
                     style = windowSizeClass.bodyTextStyle,
@@ -1429,135 +1297,57 @@ fun CustomerDetailsDialog(
 
                 if (selectedAddress != null) {
                     Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = windowSizeClass.normalVerticalPadding),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        ),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = windowSizeClass.normalVerticalPadding),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                         elevation = CardDefaults.cardElevation(defaultElevation = windowSizeClass.smallSizes)
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(windowSizeClass.normalVerticalPadding)
-                        ) {
+                        Column(modifier = Modifier.fillMaxWidth().padding(windowSizeClass.normalVerticalPadding)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.Top
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = selectedAddress.fullName,
-                                        style = windowSizeClass.bodyTextStyle,
-                                        fontWeight = FontWeight.Medium
-                                    )
-
-                                    Text(
-                                        text = selectedAddress.phoneNumber,
-                                        style = windowSizeClass.bodyTextStyle,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(top = windowSizeClass.smallVerticalPadding)
-                                    )
-
-                                    Text(
-                                        text = "${selectedAddress.addressLine1}${if (selectedAddress.addressLine2.isNotEmpty()) ", ${selectedAddress.addressLine2}" else ""}",
-                                        style = windowSizeClass.bodyTextStyle,
-                                        modifier = Modifier.padding(top = windowSizeClass.smallVerticalPadding)
-                                    )
-
-                                    Text(
-                                        text = "${selectedAddress.city}, ${selectedAddress.state} ${selectedAddress.zipCode}",
-                                        style = windowSizeClass.bodyTextStyle,
-                                        modifier = Modifier.padding(top = windowSizeClass.smallVerticalPadding)
-                                    )
-
-                                    Text(
-                                        text = selectedAddress.country,
-                                        style = windowSizeClass.bodyTextStyle,
-                                        modifier = Modifier.padding(top = windowSizeClass.smallVerticalPadding)
-                                    )
+                                    Text(text = selectedAddress.fullName, style = windowSizeClass.bodyTextStyle, fontWeight = FontWeight.Medium)
+                                    Text(text = selectedAddress.phoneNumber, style = windowSizeClass.bodyTextStyle, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = windowSizeClass.smallVerticalPadding))
+                                    Text(text = "${selectedAddress.addressLine1}${if (selectedAddress.addressLine2.isNotEmpty()) ", ${selectedAddress.addressLine2}" else ""}", style = windowSizeClass.bodyTextStyle, modifier = Modifier.padding(top = windowSizeClass.smallVerticalPadding))
+                                    Text(text = "${selectedAddress.city}, ${selectedAddress.state} ${selectedAddress.zipCode}", style = windowSizeClass.bodyTextStyle, modifier = Modifier.padding(top = windowSizeClass.smallVerticalPadding))
+                                    Text(text = selectedAddress.country, style = windowSizeClass.bodyTextStyle, modifier = Modifier.padding(top = windowSizeClass.smallVerticalPadding))
                                 }
-
-                                ButtonIconComposable(
-                                    showBgColor = false,
-                                    buttonIcon = ButtonIcon.Vector(Icons.Filled.Edit),
-                                    onClick = onEditAddress,
-                                    contentDescription = "Edit address"
-                                )
+                                ButtonIconComposable(showBgColor = false, buttonIcon = ButtonIcon.Vector(Icons.Filled.Edit), onClick = onEditAddress, contentDescription = "Edit address")
                             }
 
                             if (selectedAddress.isDefault) {
                                 CustomSpacer(Modifier.height(windowSizeClass.baseVerticalPadding))
-                                Surface(
-                                    shape = CustomShape.mediumShape(),
-                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-                                ) {
+                                Surface(shape = CustomShape.mediumShape(), color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)) {
                                     Text(
                                         text = stringResource(R.string.default_address),
                                         style = windowSizeClass.labelTextStyle,
                                         color = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.padding(
-                                            horizontal = windowSizeClass.baseVerticalPadding,
-                                            vertical = windowSizeClass.smallVerticalPadding
-                                        )
+                                        modifier = Modifier.padding(horizontal = windowSizeClass.baseVerticalPadding, vertical = windowSizeClass.smallVerticalPadding)
                                     )
                                 }
                             }
                         }
                     }
                 } else if (addressState.isLoading) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = windowSizeClass.basePadding),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CustomCircularProgressIndicator(
-                            modifier = Modifier.size(windowSizeClass.basePadding),
-                            strokeWidth = windowSizeClass.borderSize
-                        )
+                    Box(modifier = Modifier.fillMaxWidth().padding(vertical = windowSizeClass.basePadding), contentAlignment = Alignment.Center) {
+                        CustomCircularProgressIndicator(modifier = Modifier.size(windowSizeClass.basePadding), strokeWidth = windowSizeClass.borderSize)
                     }
                 } else {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = windowSizeClass.basePadding)
-                    ) {
-                        CustomIcon(
-                            icon = Icons.Filled.LocationOff,
-                            contentDescription = "Location off",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            iconSize = windowSizeClass.largeIconSize
-                        )
-
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(vertical = windowSizeClass.basePadding)) {
+                        CustomIcon(icon = Icons.Filled.LocationOff, contentDescription = "Location off", tint = MaterialTheme.colorScheme.onSurfaceVariant, iconSize = windowSizeClass.largeIconSize)
                         CustomSpacer()
-
-                        Text(
-                            text = stringResource(R.string.no_address_selected),
-                            style = windowSizeClass.bodyTextStyle,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
-                        )
-
+                        Text(text = stringResource(R.string.no_address_selected), style = windowSizeClass.bodyTextStyle, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                     }
                 }
             }
         },
         dismissButton = {
-            CustomTextButton(
-                onClick = onDismiss,
-                label = R.string.dismiss,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            CustomTextButton(onClick = onDismiss, label = R.string.dismiss, color = MaterialTheme.colorScheme.onSurfaceVariant)
         },
         confirmButton = {
-            CustomTextButton(
-                onClick = onAddNewAddress,
-                label = R.string.add_address,
-            )
+            CustomTextButton(onClick = onAddNewAddress, label = R.string.add_address)
         }
     )
 }
@@ -1576,37 +1366,19 @@ fun AddressSelectionDialog(
         scrollable = false,
         onDismissRequest = onDismiss,
         icon = {
-            CustomIcon(
-                icon = Icons.Filled.AddLocationAlt,
-                contentDescription = "Person",
-                iconSize = windowSizeClass.largeIconSize
-            )
+            CustomIcon(icon = Icons.Filled.AddLocationAlt, contentDescription = "Select address", iconSize = windowSizeClass.largeIconSize)
         },
         title = {
-            Text(
-                stringResource(R.string.select_delivery_address),
-                style = windowSizeClass.titleTextStyle
-            )
+            Text(stringResource(R.string.select_delivery_address), style = windowSizeClass.titleTextStyle)
         },
         confirmButton = {
-            CustomTextButton(
-                onClick = onAddNewAddress,
-                label = R.string.add_delivery_address,
-            )
+            CustomTextButton(onClick = onAddNewAddress, label = R.string.add_delivery_address)
         },
         dismissButton = {
-            CustomTextButton(
-                onClick = onDismiss,
-                label = R.string.cancel,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            CustomTextButton(onClick = onDismiss, label = R.string.cancel, color = MaterialTheme.colorScheme.onSurfaceVariant)
         },
         text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = customSpacing.custom400)
-            ) {
+            Column(modifier = Modifier.fillMaxWidth().heightIn(max = customSpacing.custom400)) {
                 if (addresses.isEmpty()) {
                     CustomEmptyState(
                         title = R.string.no_saved_address,
@@ -1615,17 +1387,13 @@ fun AddressSelectionDialog(
                         leadingIcon = Icons.Filled.LocationOff,
                     )
                 } else {
-                    CustomLazyColumn(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
+                    CustomLazyColumn(modifier = Modifier.fillMaxWidth()) {
                         items(addresses) { address ->
                             AddressSelectionItem(
                                 address = address,
                                 isSelected = selectedAddress?.id == address.id,
                                 onSelected = { onAddressSelected(address) },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = windowSizeClass.baseVerticalPadding)
+                                modifier = Modifier.fillMaxWidth().padding(vertical = windowSizeClass.baseVerticalPadding)
                             )
                         }
                     }
@@ -1647,90 +1415,40 @@ fun AddressSelectionItem(
     Card(
         modifier = modifier,
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surface
-            }
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
         ),
-        border = if (isSelected) {
+        border = if (isSelected)
             BorderStroke(windowSizeClass.borderSize, MaterialTheme.colorScheme.primary)
-        } else {
-            BorderStroke(windowSizeClass.smallSizes, MaterialTheme.colorScheme.outline)
-        },
+        else
+            BorderStroke(windowSizeClass.smallSizes, MaterialTheme.colorScheme.outline),
         onClick = onSelected
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(windowSizeClass.basePadding)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(windowSizeClass.basePadding)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = address.fullName,
-                        style = windowSizeClass.bodyTextStyle,
-                        fontWeight = FontWeight.Medium
-                    )
-                    CustomSpacer(modifier = Modifier.width(windowSizeClass.baseVerticalPadding))
-
-                    Text(
-                        text = address.phoneNumber,
-                        style = windowSizeClass.bodyTextStyle,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    CustomSpacer(modifier = Modifier.width(windowSizeClass.baseVerticalPadding))
-
-                    Text(
-                        text = "${address.addressLine1}${if (address.addressLine2.isNotEmpty()) ", ${address.addressLine2}" else ""}",
-                        style = windowSizeClass.bodyTextStyle
-                    )
-
-                    CustomSpacer(modifier = Modifier.width(windowSizeClass.baseVerticalPadding))
-
-                    Text(
-                        text = "${address.city}, ${address.state} ${address.zipCode}",
-                        style = windowSizeClass.bodyTextStyle
-                    )
-
-                    CustomSpacer(modifier = Modifier.width(windowSizeClass.baseVerticalPadding))
-
-                    Text(
-                        text = address.country,
-                        style = windowSizeClass.bodyTextStyle
-                    )
-
+                    Text(text = address.fullName, style = windowSizeClass.bodyTextStyle, fontWeight = FontWeight.Medium)
                     CustomSpacer(modifier = Modifier.height(windowSizeClass.smallVerticalPadding))
+                    Text(text = address.phoneNumber, style = windowSizeClass.bodyTextStyle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    CustomSpacer(modifier = Modifier.height(windowSizeClass.smallVerticalPadding))
+                    Text(text = "${address.addressLine1}${if (address.addressLine2.isNotEmpty()) ", ${address.addressLine2}" else ""}", style = windowSizeClass.bodyTextStyle)
+                    CustomSpacer(modifier = Modifier.height(windowSizeClass.smallVerticalPadding))
+                    Text(text = "${address.city}, ${address.state} ${address.zipCode}", style = windowSizeClass.bodyTextStyle)
+                    CustomSpacer(modifier = Modifier.height(windowSizeClass.smallVerticalPadding))
+                    Text(text = address.country, style = windowSizeClass.bodyTextStyle)
                 }
-
                 if (isSelected) {
-                    CustomIcon(
-                        icon = Icons.Filled.CheckCircle,
-                        contentDescription = "Selected",
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
+                    CustomIcon(icon = Icons.Filled.CheckCircle, contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary)
                 }
             }
 
             if (address.isDefault) {
                 CustomSpacer(Modifier.height(windowSizeClass.baseVerticalPadding))
-                Surface(
-                    shape = CustomShape.mediumShape(),
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-                ) {
+                Surface(shape = CustomShape.mediumShape(), color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)) {
                     Text(
                         text = stringResource(R.string.default_address),
                         style = windowSizeClass.labelTextStyle,
                         color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(
-                            horizontal = windowSizeClass.normalVerticalPadding,
-                            vertical = windowSizeClass.smallVerticalPadding
-                        )
+                        modifier = Modifier.padding(horizontal = windowSizeClass.normalVerticalPadding, vertical = windowSizeClass.smallVerticalPadding)
                     )
                 }
             }
@@ -1738,40 +1456,49 @@ fun AddressSelectionItem(
     }
 }
 
-@Composable
-fun PrimeSavingsSummaryCard(
-    summary: CheckoutSummary,
-    modifier: Modifier = Modifier
-) {
-    val windowSizeClass = LocalWindowSizeConstant.current
+// ============================================================
+// PRIME COMPOSABLES
+// ============================================================
 
+/**
+ * PrimeOrderSummaryCard — single card replacing the previous two-card setup.
+ *
+ * How Prime benefit math works (all values come pre-calculated from the ViewModel):
+ *
+ *  subtotal          = sum of (price × quantity) for every item — full price, no discounts yet
+ *  primeDiscountAmount = subtotal × member discount rate (e.g. 10 %) — set in PrimeMembershipViewModel
+ *  tax               = (subtotal − primeDiscountAmount) × tax rate — tax is on the discounted price
+ *  shippingCost      = 0.0 when FREE_SHIPPING benefit is active, else the normal shipment price
+ *  total             = subtotal − primeDiscountAmount + shippingCost + tax
+ *  primeTotalSavings = primeDiscountAmount + (normalShippingCost − shippingCost)
+ *                      i.e. money saved on discount PLUS money saved on shipping
+ *
+ * appliedBenefits is a list of BenefitType entries that were actually triggered:
+ *   FREE_SHIPPING     → shippingCost set to 0.0
+ *   EXCLUSIVE_DISCOUNT→ primeDiscountAmount > 0
+ *   PRIME_REWARDS     → bonus reward points added (savingsAmount = point value)
+ */
+
+@Composable
+fun PrimeOrderSummaryCard(summary: CheckoutSummary, modifier: Modifier = Modifier) {
+    val windowSizeClass = LocalWindowSizeConstant.current
     if (!summary.isPrimeOrder) return
 
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = colors.customColor9.copy(alpha = 0.1f)
-        ),
-        border = BorderStroke(windowSizeClass.smallSizes, colors.customColor9.copy(alpha = 0.3f))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        border = BorderStroke(windowSizeClass.smallSizes, colors.customColor9.copy(alpha = 0.4f))
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(windowSizeClass.basePadding)
+                .padding(windowSizeClass.basePadding),
+            verticalArrangement = Arrangement.spacedBy(windowSizeClass.baseVerticalPadding)
         ) {
-            // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                CustomIcon(
-                    icon = Icons.Filled.Stars,
-                    contentDescription = null,
-                    tint = colors.customColor9,
-                )
-
+            // ── Prime header
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                CustomIcon(icon = Icons.Filled.Stars, contentDescription = null, tint = colors.customColor9)
                 CustomSpacer(modifier = Modifier.width(windowSizeClass.baseVerticalPadding))
-
                 Column {
                     Text(
                         stringResource(R.string.prime_member_benefits_applied),
@@ -1779,15 +1506,9 @@ fun PrimeSavingsSummaryCard(
                         fontWeight = FontWeight.Bold,
                         color = colors.customColor9
                     )
-
-                    CustomSpacer(
-                        modifier = Modifier.height(windowSizeClass.baseVerticalPadding)
-                    )
-
+                    // primeTotalSavings = discount saved + shipping saved
                     Text(
-                        "You're saving ${
-                            formatPrice(summary.primeTotalSavings)
-                        }",
+                        "You're saving ${formatPrice(summary.primeTotalSavings)} on this order",
                         style = windowSizeClass.bodyTextStyle,
                         color = colors.customColor5,
                         fontWeight = FontWeight.SemiBold
@@ -1795,25 +1516,16 @@ fun PrimeSavingsSummaryCard(
                 }
             }
 
+            // ── Active benefits list (FREE_SHIPPING / EXCLUSIVE_DISCOUNT / PRIME_REWARDS)
             if (summary.appliedBenefits.isNotEmpty()) {
-                CustomSpacer()
-                CustomHorizontalDivider(
-                    color = colors.customColor9.copy(alpha = 0.2f)
-                )
-
-                // Benefits list
+                CustomHorizontalDivider(color = colors.customColor9.copy(alpha = 0.2f))
                 summary.appliedBenefits.forEach { benefit ->
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = windowSizeClass.smallVerticalPadding),
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f)
-                        ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                             CustomIcon(
                                 icon = when (benefit.benefitType) {
                                     BenefitType.FREE_SHIPPING -> Icons.Filled.LocalShipping
@@ -1822,20 +1534,15 @@ fun PrimeSavingsSummaryCard(
                                 },
                                 contentDescription = null,
                                 tint = colors.customColor9,
-                                modifier = Modifier.size(windowSizeClass.basePadding)
+                                iconSize = windowSizeClass.baseIconSize
                             )
-
                             CustomSpacer(modifier = Modifier.width(windowSizeClass.baseVerticalPadding))
-
-                            Text(
-                                benefit.description,
-                                style = windowSizeClass.bodyTextStyle
-                            )
+                            Text(benefit.description, style = windowSizeClass.bodyTextStyle)
                         }
-
+                        // savingsAmount > 0 means this benefit has a monetary value to display
                         if (benefit.savingsAmount > 0) {
                             Text(
-                                "-$${formatPrice(benefit.savingsAmount)}",
+                                "-${formatPrice(benefit.savingsAmount)}",
                                 style = windowSizeClass.bodyTextStyle,
                                 fontWeight = FontWeight.Bold,
                                 color = colors.customColor5
@@ -1844,165 +1551,68 @@ fun PrimeSavingsSummaryCard(
                     }
                 }
             }
-        }
-    }
-}
 
-@Composable
-fun OrderSummaryWithPrime(
-    summary: CheckoutSummary,
-    modifier: Modifier = Modifier
-) {
+            // ── Price breakdown
+            CustomHorizontalDivider()
 
-    val windowSizeClass = LocalWindowSizeConstant.current
+            // subtotal = raw items total (price × qty, no discounts)
+            DetailRow(label = stringResource(R.string.sub_total), value = formatPrice(summary.subtotal))
 
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(windowSizeClass.basePadding)
-        ) {
-            Text(
-                stringResource(R.string.order_summary),
-                style = windowSizeClass.titleTextStyle
-            )
-
-            CustomSpacer()
-
-            // Subtotal
-            DetailRow(
-                valueStyle = windowSizeClass.bodyTextStyle,
-                label = stringResource(R.string.sub_total),
-                value = formatPrice(summary.subtotal)
-            )
-
-            CustomSpacer(modifier = Modifier.height(windowSizeClass.smallVerticalPadding))
-
-            // Prime Discount
-            if (summary.isPrimeOrder && summary.primeDiscountAmount > 0) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
+            // primeDiscountAmount = subtotal × member discount rate
+            if (summary.primeDiscountAmount > 0) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        CustomIcon(
-                            icon = Icons.Filled.Stars,
-                            contentDescription = "Stars",
-                            tint = colors.customColor9,
-                            iconSize = windowSizeClass.basePadding
-                        )
-
+                        CustomIcon(icon = Icons.Filled.Stars, contentDescription = null, tint = colors.customColor9, iconSize = windowSizeClass.baseIconSize)
                         CustomSpacer(modifier = Modifier.width(windowSizeClass.smallVerticalPadding))
-
-                        Text(
-                            stringResource(R.string.prime_discount),
-                            style = windowSizeClass.bodyTextStyle
-                        )
+                        Text(stringResource(R.string.prime_discount), style = windowSizeClass.bodyTextStyle, color = colors.customColor9)
                     }
-                    Text(
-                        "-$${formatPrice(summary.primeDiscountAmount)}",
-                        style = windowSizeClass.bodyTextStyle,
-                        color = colors.customColor5,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text("-${formatPrice(summary.primeDiscountAmount)}", style = windowSizeClass.bodyTextStyle, color = colors.customColor5, fontWeight = FontWeight.Bold)
                 }
-                CustomSpacer(modifier = Modifier.height(windowSizeClass.baseVerticalPadding))
             }
 
-            // Tax
-            DetailRow(
-                valueStyle = windowSizeClass.bodyTextStyle,
-                label = stringResource(R.string.tax),
-                value = formatPrice(summary.tax)
-            )
+            // tax = (subtotal − primeDiscountAmount) × tax rate
+            if (summary.tax > 0) {
+                DetailRow(label = stringResource(R.string.tax), value = formatPrice(summary.tax))
+            }
 
-            CustomSpacer(modifier = Modifier.height(windowSizeClass.smallVerticalPadding))
-
-            // Shipping
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    stringResource(R.string.shipping),
-                    style = windowSizeClass.bodyTextStyle
-                )
-
-                if (summary.isPrimeOrder && summary.shippingCost == 0.0) {
+            // shippingCost = 0.0 when FREE_SHIPPING benefit applies, otherwise normal rate
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.shipping), style = windowSizeClass.bodyTextStyle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (summary.shippingCost == 0.0) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            stringResource(R.string.free),
-                            style = windowSizeClass.bodyTextStyle,
-                            color = colors.customColor9,
-                        )
-
+                        Text(stringResource(R.string.free), style = windowSizeClass.bodyTextStyle, color = colors.customColor9, fontWeight = FontWeight.Bold)
                         CustomSpacer(modifier = Modifier.width(windowSizeClass.smallVerticalPadding))
-
-                        CustomIcon(
-                            icon = Icons.Filled.Stars,
-                            contentDescription = "Stars",
-                            tint = colors.customColor9,
-                            iconSize = windowSizeClass.basePadding
-                        )
+                        CustomIcon(icon = Icons.Filled.Stars, contentDescription = null, tint = colors.customColor9, iconSize = windowSizeClass.baseIconSize)
                     }
                 } else {
-                    Text(
-                        formatPrice(summary.shippingCost),
-                        style = windowSizeClass.bodyTextStyle,
-                        color = colors.customColor9,
-                    )
+                    Text(formatPrice(summary.shippingCost), style = windowSizeClass.bodyTextStyle)
                 }
             }
 
-            CustomHorizontalDivider(
-                modifier = Modifier.padding(vertical = windowSizeClass.normalVerticalPadding)
+            CustomHorizontalDivider()
+
+            // total = subtotal − primeDiscountAmount + shippingCost + tax
+            DetailRow(
+                label = stringResource(R.string.total),
+                value = formatPrice(summary.total),
+                labelStyle = windowSizeClass.titleTextStyle,
+                valueStyle = windowSizeClass.titleTextStyle,
+                fontWeight = FontWeight.Bold
             )
 
-            // Total
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    stringResource(R.string.total),
-                    style = windowSizeClass.titleTextStyle
-                )
-
-                Text(
-                    formatPrice(summary.total),
-                    style = windowSizeClass.bodyTextStyle
-                )
-            }
-
-            // Prime savings highlight
-            if (summary.isPrimeOrder && summary.primeTotalSavings > 0) {
+            // Savings badge — only when there is something to show
+            if (summary.primeTotalSavings > 0) {
                 Surface(
                     color = colors.customColor9.copy(alpha = 0.1f),
                     shape = CustomShape.mediumShape()
                 ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(windowSizeClass.baseVerticalPadding),
+                        modifier = Modifier.fillMaxWidth().padding(windowSizeClass.baseVerticalPadding),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        CustomIcon(
-                            icon = Icons.Filled.Savings,
-                            contentDescription = "Savings",
-                            tint = colors.customColor9,
-                            iconSize = windowSizeClass.basePadding
-                        )
-
-                        CustomSpacer(modifier = Modifier.width(windowSizeClass.basePadding))
-
+                        CustomIcon(icon = Icons.Filled.Savings, contentDescription = null, tint = colors.customColor9, iconSize = windowSizeClass.baseIconSize)
+                        CustomSpacer(modifier = Modifier.width(windowSizeClass.baseVerticalPadding))
                         Text(
                             "You saved ${formatPrice(summary.primeTotalSavings)} with Prime!",
                             style = windowSizeClass.bodyTextStyle,
@@ -2013,28 +1623,44 @@ fun OrderSummaryWithPrime(
                 }
             }
 
-            // Estimated delivery
-            CustomSpacer()
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                CustomIcon(
-                    icon = Icons.Filled.LocalShipping,
-                    contentDescription = "Local shipping",
-                    tint = if (summary.isPrimeOrder) colors.customColor5 else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-
+            // Estimated delivery (faster for Prime members)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                CustomIcon(icon = Icons.Filled.LocalShipping, contentDescription = null, tint = colors.customColor5)
                 CustomSpacer(modifier = Modifier.width(windowSizeClass.baseVerticalPadding))
-
-                Text(
-                    "Estimated delivery: ${summary.estimatedDelivery}",
-                    style = windowSizeClass.bodyTextStyle,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Text("Estimated delivery: ${summary.estimatedDelivery}", style = windowSizeClass.bodyTextStyle, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
 }
 
+@Composable
+fun QuantitySelectionDialog(
+    selectedQuantity: Int,
+    onQuantitySelected: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val windowSizeClass = LocalWindowSizeConstant.current
+    val quantities = (1..10).toList()
+
+    CustomAlertDialog(
+        scrollable = false,
+        onDismissRequest = onDismiss,
+        icon = {
+            CustomIcon(icon = Icons.Filled.ShoppingCart, contentDescription = "Quantity", iconSize = windowSizeClass.largeIconSize)
+        },
+        title = {
+            Text(text = "Select Quantity", style = windowSizeClass.titleTextStyle, fontWeight = FontWeight.Bold)
+        },
+        text = {
+            CustomLazyRow {
+                items(quantities.size) { index ->
+                    val quantity = quantities[index]
+                    CustomFilterChip(label = "$quantity", isSelected = selectedQuantity == quantity, onClick = { onQuantitySelected(quantity) })
+                }
+            }
+        },
+        confirmButton = {
+            CustomTextButton(onClick = onDismiss, label = R.string.cancel, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    )
+}

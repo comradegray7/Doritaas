@@ -70,18 +70,6 @@ fun isValidFullName(name: String): Boolean {
 }
 
 /**
- * Validates if the provided string is a valid phone number.
- *
- * @param phone The phone number string to validate
- * @return true if the phone number matches the pattern (optional +, 10-15 digits), false otherwise
- */
-fun isValidPhone(phone: String): Boolean {
-    val phonePattern = "^[+]?[0-9]{10,15}$".toRegex()
-    val cleanPhone = phone.replace("\\s".toRegex(), "")
-    return phonePattern.matches(cleanPhone)
-}
-
-/**
  * isValidCardNumber - Validates if a string is a valid credit card number.
  *
  * Checks if the string length is 16 and consists only of digits.
@@ -124,22 +112,6 @@ fun isValidCvv(cvv: String): Boolean {
     return cvv.length == 3 && cvv.all { it.isDigit() }
 }
 
-/**
- * Returns an error message for invalid phone numbers.
- *
- * @param phoneNumber The phone number string to validate
- * @return A descriptive error message string, or an empty string if valid
- */
-fun getPhoneNumberErrorMessage(phoneNumber: String): String {
-    return when {
-        phoneNumber.isEmpty() -> "Phone number is required"
-        !phoneNumber.startsWith("+") -> "Phone number must start with +"
-        !phoneNumber.drop(1).all { it.isDigit() } -> "Phone number must contain only digits after +"
-        phoneNumber.length < 10 -> "Phone number is too short"
-        phoneNumber.length > 15 -> "Phone number is too long"
-        else -> ""
-    }
-}
 /**
  * CustomTextField - Composable function for creating customizable text input fields.
  *
@@ -198,6 +170,7 @@ fun CustomTextField(
     readOnly: Boolean = false,
     singleLine: Boolean = true,
     supportingText: @Composable (() -> Unit)? = null,
+    leadingIcon: @Composable (() -> Unit)? = null,
 ) {
     val windowSizeConstant = LocalWindowSizeConstant.current
 
@@ -213,6 +186,7 @@ fun CustomTextField(
             readOnly = readOnly,
             minLines = minLines,
             enabled = enabled,
+            leadingIcon = leadingIcon,
             supportingText = supportingText,
             placeholder = {
                 // Prioritize placeholderUnit if provided (for dynamic content)

@@ -142,13 +142,26 @@ fun ShopScreen(
     var showRatingDialog by remember { mutableStateOf(false) }
     var selectedProductForRating by remember { mutableStateOf<ProductItem?>(null) }
 
+//    LaunchedEffect(authState.user) {
+//        if (authState.user == null) {
+//            primeViewModel.clearPrimeStatus()
+//            Log.d("ShopScreen", "User logged out - Prime status cleared")
+//        } else {
+//            primeViewModel.loadPrimeStatus()
+//            Log.d("ShopScreen", "User logged in - Loading Prime status")
+//        }
+//    }
+
+    // 1. Single entry point for data loading
     LaunchedEffect(authState.user) {
-        if (authState.user == null) {
-            primeViewModel.clearPrimeStatus()
-            Log.d("ShopScreen", "User logged out - Prime status cleared")
-        } else {
+        // Tell the ViewModel to initialize.
+        // It should handle the logic of checking if the user is null or not internally.
+        viewModel.initializeShopContent(authState.user != null)
+
+        if (authState.user != null) {
             primeViewModel.loadPrimeStatus()
-            Log.d("ShopScreen", "User logged in - Loading Prime status")
+        } else {
+            primeViewModel.clearPrimeStatus()
         }
     }
 

@@ -13,7 +13,8 @@ import androidx.credentials.exceptions.NoCredentialException
 import androidx.lifecycle.lifecycleScope
 import com.example.myapp.R
 import com.example.myapp.data.FirestoreCollections
-import com.example.myapp.data.model.AuthResult
+import com.example.myapp.data.dataclass.UserProfile
+import com.example.myapp.data.model.AuthResponse
 import com.google.android.gms.tasks.Task
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
@@ -42,118 +43,147 @@ import javax.inject.Inject
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-
 /**
- * AuthRepository
+ * Repository contract for authentication and user profile administration.
  *
- * Interface defining the contract for authentication operations including email/password,
- * Google Sign-In, and Phone (OTP) authentication.
+ * Implementations are responsible for Firebase Auth provider flows, current-session access,
+ * password reset requests, and privileged Firestore user-management operations.
  */
 interface AuthRepository {
     /**
-     * Sign in using an email/password pair.
+     * Signs in an existing Firebase Auth user with email/password credentials.
      *
-     * Wraps `FirebaseAuth.signInWithEmailAndPassword` and, on success,
-     * ensures the user document is upserted in Firestore.
+     * @param email User email address.
+     * @param password User password.
+     * @return [AuthResponse.Success] with the signed-in user, or [AuthResponse.Error].
      */
-    suspend fun signInWithEmail(email: String, password: String): AuthResult
+    suspend fun signInWithEmail(email: String, password: String): AuthResponse
 
     /**
-     * Register a new account using email/password.
+     * Creates a new Firebase Auth user with email/password credentials.
      *
-     * Creates the user in Firebase Auth, then persists a basic `User`
-     * document in Firestore.
+     * @param email Email address for the new account.
+     * @param password Password for the new account.
+     * @return [AuthResponse.Success] with the created user, or [AuthResponse.Error].
      */
-    suspend fun signUpWithEmail(email: String, password: String): AuthResult
+    suspend fun signUpWithEmail(email: String, password: String): AuthResponse
 
     /**
-     * Launch the Google Sign‑In flow for the given `activity`.
+     * Initiates Google Sign-In through Android Credential Manager.
      *
-     * Uses Credential Manager + `GoogleIdTokenCredential` and signs
-     * the resulting account into Firebase.
+     * @param activity Activity context required by Credential Manager.
+     * @return [AuthResponse.Success] with the signed-in Firebase user, or [AuthResponse.Error].
      */
-    suspend fun signInWithGoogle(activity: ComponentActivity): AuthResult
+    suspend fun signInWithGoogle(activity: ComponentActivity): AuthResponse
 
     /**
-     * Send a password‑reset email for the given address.
+     * Sends a Firebase password reset email.
      *
-     * Returns `Result.success(Unit)` on success or a failure
-     * with a user‑friendly error message on common Firebase errors.
+     * @param email Account email that should receive the reset link.
+     * @return Success when Firebase accepts the request, otherwise a failure with a user-facing error.
      */
-    suspend fun sendPasswordResetEmail(email: String) : Result<Unit>
+    suspend fun sendPasswordResetEmail(email: String): Result<Unit>
 
     /**
-     * The currently signed‑in Firebase user, or `null` if not authenticated.
+     * Returns the current Firebase Auth user from local session state.
+     *
+     * @return Current [FirebaseUser], or null when signed out.
      */
     fun getCurrentUser(): FirebaseUser?
 
     /**
-     * Sign the current user out of Firebase Auth.
-     *
-     * Does not clear any Firestore data; only the auth session.
+     * Signs out the current Firebase Auth session.
      */
     fun signOut()
 
     /**
-     * Send an SMS one‑time‑password (OTP) to the given phone number.
+     * Sends a phone one-time password using Firebase phone authentication.
      *
-     * Uses `PhoneAuthProvider` under the hood and returns:
-     * - `Success(null)` when the code is sent and we await user input
-     * - `Success(user)` when instant verification/auto‑retrieval succeeds
-     * - `Error` on failure.
+     * @param phoneNumber Full phone number including country code.
+     * @param activity Activity required for reCAPTCHA and phone auth callbacks.
+     * @return [AuthResponse.Success] when the verification code is sent or auto-completed.
      */
-    suspend fun sendOTP(phoneNumber: String, activity: ComponentActivity): AuthResult
+    suspend fun sendOTP(phoneNumber: String, activity: ComponentActivity): AuthResponse
 
     /**
-     * Verify a user‑entered OTP against the previously sent verification ID.
+     * Verifies a phone one-time password against the latest stored verification id.
      *
-     * On success, signs the user into Firebase and returns `Success(user)`.
+     * @param otp Verification code entered by the user.
+     * @return [AuthResponse.Success] with the signed-in user, or [AuthResponse.Error].
      */
-    suspend fun verifyOTP(otp: String): AuthResult
+    suspend fun verifyOTP(otp: String): AuthResponse
 
     /**
-     * Convenience accessor for the current user UID, or `null` if signed out.
+     * Returns the UID for the current Firebase user.
+     *
+     * @return Current user id, or null when signed out.
      */
     fun getCurrentUserId(): String?
 
     /**
-     * Check whether the given user has admin privileges.
+     * Checks whether a Firestore user document has admin privileges.
      *
-     * Looks up the user document and reads the `isAdmin` flag, returning
-     * `false` on any error.
+     * @param userId Firebase UID to inspect.
+     * @return True when the user is marked admin.
      */
     suspend fun isUserAdmin(userId: String): Boolean
 
     /**
-     * Fetch all user documents from the users collection.
+     * Checks whether a Firestore user document has superAdmin privileges.
      *
-     * Intended for admin views; returns a `Result` so callers can surface
-     * errors in the UI.
+     * @param userId Firebase UID to inspect.
+     * @return True when the user is marked superAdmin.
      */
-    suspend fun getAllUsers(): Result<List<User>>
+    suspend fun isUserSuperAdmin(userId: String): Boolean
+
+    /**
+     * Retrieves all Firestore user profile documents.
+     *
+     * @return Result containing user profiles, or a failure from Firestore.
+     */
+    suspend fun getAllUsers(): Result<List<UserProfile?>>
+
+    /**
+     * Searches Firestore user profiles by full name or email.
+     *
+     * @param query Case-insensitive search query.
+     * @return Result containing matching profiles, or a failure from Firestore.
+     */
+    suspend fun searchUsers(query: String): Result<List<UserProfile>>
+
+    /**
+     * Updates a user's admin role flag.
+     *
+     * @param userId Firebase UID of the target profile.
+     * @param makeAdmin True to promote, false to demote.
+     * @return Success when the Firestore update completes.
+     */
+    suspend fun toggleAdminStatus(userId: String, makeAdmin: Boolean): Result<Unit>
+
+    /**
+     * Deletes a user's Firestore profile document.
+     *
+     * This does not delete the Firebase Auth account; that requires server-side Admin SDK access.
+     *
+     * @param userId Firebase UID of the target profile.
+     * @return Success when the Firestore delete completes.
+     */
+    suspend fun deleteUser(userId: String): Result<Unit>
+
+    /**
+     * Updates selected fields in a Firestore user profile.
+     *
+     * @param userId Firebase UID of the target profile.
+     * @param profileUpdates Firestore field/value map to update.
+     * @return Success when the Firestore update completes.
+     */
+    suspend fun updateUserProfile(userId: String, profileUpdates: Map<String, Any>): Result<Unit>
 }
 
 /**
- * User - Basic profile snapshot stored in Firestore.
+ * Implementation of [AuthRepository] utilizing Firebase Authentication and Cloud Firestore.
  *
- * Mirrors key fields from `FirebaseUser` plus simple metadata
- * such as provider, creation time, and last login.
- */
-data class User(
-    val uid: String = "",
-    val email: String = "",
-    val displayName: String = "",
-    val photoUrl: String? = null,
-    val provider: String = "google",
-    val createdAt: Timestamp = Timestamp.now(),
-    val lastLogin: Timestamp = Timestamp.now()
-)
-
-
-/**
- * AuthRepositoryImpl
- *
- * Implementation of [AuthRepository] using Firebase Auth and Firestore.
+ * @param firestore Firestore instance used for user document management.
  */
 class AuthRepositoryImpl @Inject constructor(
     firestore: FirebaseFirestore
@@ -161,96 +191,97 @@ class AuthRepositoryImpl @Inject constructor(
 
     companion object {
         private const val TAG = "AuthRepository"
+        private const val FIELD_ADMIN       = "admin"
+        private const val FIELD_SUPER_ADMIN = "superAdmin"
     }
-    private val auth = FirebaseAuth.getInstance()
+
+    private val auth            = FirebaseAuth.getInstance()
     private val usersCollection = firestore.collection(FirestoreCollections.USERS)
 
+    // -------------------------------------------------------------------------
+    // Internal helpers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Saves or updates the user profile in Firestore upon successful authentication.
+     *
+     * @param user The authenticated Firebase user.
+     */
     private suspend fun saveUserToFirestore(user: FirebaseUser) {
         try {
-            // Check if user already exists
             val document = usersCollection.document(user.uid).get().await()
-
             if (document.exists()) {
-                // Update last login time for existing user
-                usersCollection.document(user.uid).update("lastLogin", Timestamp.now())
-                println("User already exists, updated last login: ${user.uid}")
+                usersCollection.document(user.uid)
+                    .update("lastLogin", Timestamp.now())
+                    .await()
+                Log.d(TAG, "Updated last login for: ${user.uid}")
             } else {
-                // Create new user document
-                val userData = User(
-                    uid = user.uid,
-                    email = user.email ?: "",
+                val userData = UserProfile(
+                    id          = user.uid,
+                    email       = user.email ?: "",
                     displayName = user.displayName ?: "",
-                    lastLogin = Timestamp.now()
+                    lastLogin   = Timestamp.now()
                 )
-
-                usersCollection.document(user.uid).set(userData)
-                    .addOnSuccessListener {
-                        println("New user successfully saved to Firestore: ${user.uid}")
-                    }
-                    .addOnFailureListener { e ->
-                        println("Error saving user to Firestore: ${e.message}")
-                    }
+                usersCollection.document(user.uid).set(userData).await()
+                Log.d(TAG, "New user saved: ${user.uid}")
             }
         } catch (e: Exception) {
-            println("Exception saving user to Firestore: ${e.message}")
+            Log.e(TAG, "Exception saving user to Firestore: ${e.message}", e)
         }
     }
 
-    override suspend fun signInWithEmail(email: String, password: String): AuthResult {
+    // -------------------------------------------------------------------------
+    // Auth operations
+    // -------------------------------------------------------------------------
+
+    override suspend fun signInWithEmail(email: String, password: String): AuthResponse {
         return try {
-            val authResult = auth.signInWithEmailAndPassword(email, password).await()
-            val user = authResult.user
-            if (user != null) {
-                saveUserToFirestore(user) // This will await the Firestore operation
-            }
-            AuthResult.Success(user)
+            val result = auth.signInWithEmailAndPassword(email, password).await()
+            val user   = result.user
+            if (user != null) saveUserToFirestore(user)
+            AuthResponse.Success(user)
         } catch (e: Exception) {
-            AuthResult.Error(e.message ?: "Sign in failed")
+            AuthResponse.Error(e.message ?: "Sign in failed")
         }
     }
 
-    override suspend fun signUpWithEmail(email: String, password: String): AuthResult {
+    override suspend fun signUpWithEmail(email: String, password: String): AuthResponse {
         return try {
-            val authResult = auth.createUserWithEmailAndPassword(email, password).await()
-            val user = authResult.user
-            if (user != null) {
-                saveUserToFirestore(user) // This will await the Firestore operation
-            }
-            AuthResult.Success(user)
+            val result = auth.createUserWithEmailAndPassword(email, password).await()
+            val user   = result.user
+            if (user != null) saveUserToFirestore(user)
+            AuthResponse.Success(user)
         } catch (e: Exception) {
-            AuthResult.Error(e.message ?: "Sign up failed")
+            AuthResponse.Error(e.message ?: "Sign up failed")
         }
     }
 
-
-    override suspend fun signInWithGoogle(activity: ComponentActivity): AuthResult {
+    override suspend fun signInWithGoogle(activity: ComponentActivity): AuthResponse {
         return try {
             val result = signInWithGoogleCredentialManager(activity)
-
-            // Save user to Firestore after successful sign-in
-            if (result is AuthResult.Success && result.user != null) {
+            if (result is AuthResponse.Success && result.user != null) {
                 saveUserToFirestore(result.user)
             }
-
             result
         } catch (e: Exception) {
             Log.e(TAG, "Google sign in failed: ${e.message}", e)
-            AuthResult.Error(e.message ?: "Google sign in failed")
+            AuthResponse.Error(e.message ?: "Google sign in failed")
         }
     }
 
-    private suspend fun signInWithGoogleCredentialManager(activity: ComponentActivity): AuthResult {
+    /**
+     * Internal implementation of Google Sign-In using Android's Credential Manager.
+     */
+    private suspend fun signInWithGoogleCredentialManager(activity: ComponentActivity): AuthResponse {
         return suspendCancellableCoroutine { continuation ->
             try {
                 val credentialManager = CredentialManager.create(activity)
-
-                // Get the Web Client ID from string resources
-                val webClientId = activity.getString(R.string.web_client_id) // Make sure this exists in your strings.xml
+                val webClientId       = activity.getString(R.string.web_client_id)
 
                 val googleIdOption = GetGoogleIdOption.Builder()
                     .setFilterByAuthorizedAccounts(false)
                     .setServerClientId(webClientId)
-                    .setAutoSelectEnabled(true) // Auto-select if only one account
+                    .setAutoSelectEnabled(true)
                     .build()
 
                 val request = GetCredentialRequest.Builder()
@@ -263,192 +294,138 @@ class AuthRepositoryImpl @Inject constructor(
                             request = request,
                             context = activity
                         )
-
                         when (val credential = credentialResponse.credential) {
                             is GoogleIdTokenCredential -> {
-                                // Direct GoogleIdTokenCredential
-                                val firebaseCredential = GoogleAuthProvider.getCredential(credential.idToken, null)
+                                val firebaseCredential =
+                                    GoogleAuthProvider.getCredential(credential.idToken, null)
                                 signInToFirebase(firebaseCredential, continuation)
                             }
-
                             is CustomCredential -> {
-                                // GoogleIdTokenCredential can come wrapped as a CustomCredential
                                 if (credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
                                     try {
                                         val googleIdTokenCredential =
                                             GoogleIdTokenCredential.createFrom(credential.data)
                                         val firebaseCredential = GoogleAuthProvider.getCredential(
-                                            googleIdTokenCredential.idToken,
-                                            null
+                                            googleIdTokenCredential.idToken, null
                                         )
                                         signInToFirebase(firebaseCredential, continuation)
                                     } catch (e: GoogleIdTokenParsingException) {
                                         Log.e(TAG, "Invalid Google ID token: ${e.message}", e)
-                                        if (continuation.isActive) {
-                                            continuation.resume(AuthResult.Error("Invalid Google ID token"))
-                                        }
+                                        if (continuation.isActive)
+                                            continuation.resume(AuthResponse.Error("Invalid Google ID token"))
                                     }
                                 } else {
-                                    val errorMsg =
-                                        "Unexpected custom credential type: ${credential.type}"
-                                    Log.e(TAG, errorMsg)
-                                    if (continuation.isActive) {
-                                        continuation.resume(AuthResult.Error(errorMsg))
-                                    }
+                                    val msg = "Unexpected credential type: ${credential.type}"
+                                    Log.e(TAG, msg)
+                                    if (continuation.isActive)
+                                        continuation.resume(AuthResponse.Error(msg))
                                 }
                             }
                             else -> {
-                                val errorMsg =
-                                    "Unsupported credential type: ${credential::class.java.simpleName}"
-                                Log.e(TAG, errorMsg)
-                                if (continuation.isActive) {
-                                    continuation.resume(AuthResult.Error(errorMsg))
-                                }
+                                val msg = "Unsupported credential: ${credential::class.java.simpleName}"
+                                Log.e(TAG, msg)
+                                if (continuation.isActive)
+                                    continuation.resume(AuthResponse.Error(msg))
                             }
                         }
-
                     } catch (e: GetCredentialException) {
-                        val errorMsg = when (e) {
-                            is GetCredentialCancellationException -> {
-                                "Google Sign-In was cancelled"
-                            }
-                            is NoCredentialException -> {
-                                "No Google accounts available on this device"
-                            }
-                            is GetCredentialProviderConfigurationException -> {
-                                "Google Sign-In is not properly configured"
-                            }
-                            is GetCredentialUnsupportedException -> {
-                                "Google Sign-In is not supported on this device"
-                            }
-                            else -> {
-                                "Google Sign-In failed: ${e.message}"
-                            }
+                        val msg = when (e) {
+                            is GetCredentialCancellationException         -> "Google Sign-In was cancelled"
+                            is NoCredentialException                      -> "No Google accounts available on this device"
+                            is GetCredentialProviderConfigurationException -> "Google Sign-In is not properly configured"
+                            is GetCredentialUnsupportedException          -> "Google Sign-In is not supported on this device"
+                            else                                           -> "Google Sign-In failed: ${e.message}"
                         }
-                        Log.e(TAG, "Credential exception: $errorMsg", e)
-                        if (continuation.isActive) {
-                            continuation.resume(AuthResult.Error(errorMsg))
-                        }
+                        Log.e(TAG, "Credential exception: $msg", e)
+                        if (continuation.isActive) continuation.resume(AuthResponse.Error(msg))
                     } catch (e: Exception) {
-                        val errorMsg = "Unexpected error during Google Sign-In: ${e.message}"
-                        Log.e(TAG, errorMsg, e)
-                        if (continuation.isActive) {
-                            continuation.resume(AuthResult.Error(errorMsg))
-                        }
+                        val msg = "Unexpected error during Google Sign-In: ${e.message}"
+                        Log.e(TAG, msg, e)
+                        if (continuation.isActive) continuation.resume(AuthResponse.Error(msg))
                     }
                 }
-
-                // Handle cancellation
                 continuation.invokeOnCancellation {
-                    Log.d(TAG, "Google Sign-In coroutine was cancelled")
+                    Log.d(TAG, "Google Sign-In coroutine cancelled")
                 }
-
             } catch (e: Exception) {
-                val errorMsg = "Failed to initialize Google Sign-In: ${e.message}"
-                Log.e(TAG, errorMsg, e)
-                continuation.resume(AuthResult.Error(errorMsg))
+                val msg = "Failed to initialize Google Sign-In: ${e.message}"
+                Log.e(TAG, msg, e)
+                continuation.resume(AuthResponse.Error(msg))
             }
         }
     }
 
+    /**
+     * Signs into Firebase using the provided [AuthCredential].
+     */
     private fun signInToFirebase(
         firebaseCredential: AuthCredential,
-        continuation: CancellableContinuation<AuthResult>
+        continuation: CancellableContinuation<AuthResponse>
     ) {
         auth.signInWithCredential(firebaseCredential)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
-                    Log.d(TAG, "Firebase authentication successful")
-                    val user = auth.currentUser
-                    if (continuation.isActive) {
-                        continuation.resume(AuthResult.Success(user))
-                    }
+                    if (continuation.isActive)
+                        continuation.resume(AuthResponse.Success(auth.currentUser))
                 } else {
-                    val errorMsg = task.exception?.message ?: "Firebase authentication failed"
-                    Log.e(TAG, "Firebase auth failed: $errorMsg")
-                    if (continuation.isActive) {
-                        continuation.resume(AuthResult.Error(errorMsg))
-                    }
+                    val msg = task.exception?.message ?: "Firebase authentication failed"
+                    Log.e(TAG, "Firebase auth failed: $msg")
+                    if (continuation.isActive) continuation.resume(AuthResponse.Error(msg))
                 }
             }
     }
 
     override suspend fun sendPasswordResetEmail(email: String): Result<Unit> {
-
         return try {
-            Log.d(TAG, "Sending password reset email to: $email")
-
             auth.sendPasswordResetEmail(email).await()
-
-            Log.d(TAG, "Password reset email sent successfully")
             Result.success(Unit)
-
         } catch (e: Exception) {
-            Log.e(TAG, "Error sending password reset email: ${e.message}", e)
-
-            // Handle specific Firebase exceptions
-            val errorMessage = when (e) {
-                is FirebaseAuthInvalidUserException -> "No account found with this email address"
+            val message = when (e) {
+                is FirebaseAuthInvalidUserException        -> "No account found with this email address"
                 is FirebaseAuthInvalidCredentialsException -> "Invalid email address format"
-                is FirebaseNetworkException -> "Network error. Please check your connection"
-                else -> e.message ?: "Failed to send reset email"
+                is FirebaseNetworkException                -> "Network error. Please check your connection"
+                else                                       -> e.message ?: "Failed to send reset email"
             }
-
-            Result.failure(Exception(errorMessage))
+            Result.failure(Exception(message))
         }
     }
 
     override fun getCurrentUser(): FirebaseUser? = auth.currentUser
+    override fun signOut() = auth.signOut()
+    override fun getCurrentUserId(): String? = auth.currentUser?.uid
 
-    override fun signOut() {
-        auth.signOut()
-    }
+    // -------------------------------------------------------------------------
+    // OTP / Phone auth
+    // -------------------------------------------------------------------------
 
-    override fun getCurrentUserId(): String? {
-                return auth.currentUser?.uid
-    }
-
-    // Store verification ID temporarily
     private var verificationId: String? = null
     private var forceResendingToken: PhoneAuthProvider.ForceResendingToken? = null
 
-    override suspend fun sendOTP(phoneNumber: String, activity: ComponentActivity): AuthResult {
+    override suspend fun sendOTP(phoneNumber: String, activity: ComponentActivity): AuthResponse {
         return suspendCancellableCoroutine { continuation ->
             val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
                 override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-                    // This callback is called in two situations:
-                    // 1. Instant verification
-                    // 2. Auto-retrieval of SMS code
-                    Log.d(TAG, "Verification completed automatically")
                     signInWithPhoneCredential(credential, continuation)
                 }
-
                 override fun onVerificationFailed(e: FirebaseException) {
-                    val errorMsg = when (e) {
-                        is FirebaseAuthInvalidCredentialsException -> "Invalid phone number format"
-                        is FirebaseTooManyRequestsException -> "Too many requests. Try again later"
+                    val msg = when (e) {
+                        is FirebaseAuthInvalidCredentialsException          -> "Invalid phone number format"
+                        is FirebaseTooManyRequestsException                 -> "Too many requests. Try again later"
                         is FirebaseAuthMissingActivityForRecaptchaException -> "reCAPTCHA verification needed"
-                        else -> e.message ?: "Phone verification failed"
+                        else                                                 -> e.message ?: "Phone verification failed"
                     }
-                    Log.e(TAG, "Verification failed: $errorMsg", e)
-                    if (continuation.isActive) {
-                        continuation.resume(AuthResult.Error(errorMsg))
-                    }
+                    Log.e(TAG, "Verification failed: $msg", e)
+                    if (continuation.isActive) continuation.resume(AuthResponse.Error(msg))
                 }
-
                 override fun onCodeSent(
                     verificationIdResult: String,
                     token: PhoneAuthProvider.ForceResendingToken
                 ) {
-                    Log.d(TAG, "OTP sent to $phoneNumber")
-                    verificationId = verificationIdResult
+                    verificationId      = verificationIdResult
                     forceResendingToken = token
-                    if (continuation.isActive) {
-                        continuation.resume(AuthResult.Success(null)) // OTP sent, waiting for user input
-                    }
+                    if (continuation.isActive) continuation.resume(AuthResponse.Success(null))
                 }
             }
-
             try {
                 val options = PhoneAuthOptions.newBuilder(auth)
                     .setPhoneNumber(phoneNumber)
@@ -456,76 +433,129 @@ class AuthRepositoryImpl @Inject constructor(
                     .setActivity(activity)
                     .setCallbacks(callbacks)
                     .build()
-
                 PhoneAuthProvider.verifyPhoneNumber(options)
             } catch (e: Exception) {
-                val errorMsg = "Failed to send OTP: ${e.message}"
-                Log.e(TAG, errorMsg, e)
-                if (continuation.isActive) {
-                    continuation.resume(AuthResult.Error(errorMsg))
-                }
+                val msg = "Failed to send OTP: ${e.message}"
+                Log.e(TAG, msg, e)
+                if (continuation.isActive) continuation.resume(AuthResponse.Error(msg))
             }
         }
     }
 
-    override suspend fun verifyOTP(otp: String): AuthResult {
+    override suspend fun verifyOTP(otp: String): AuthResponse {
         return try {
-            if (verificationId == null) {
-                AuthResult.Error("Verification ID not found. Please request OTP again.")
-            } else {
-                val credential = PhoneAuthProvider.getCredential(verificationId!!, otp)
-                suspendCancellableCoroutine { continuation: CancellableContinuation<AuthResult> ->
-                    signInWithPhoneCredential(credential, continuation)
-                }
+            val id = verificationId
+                ?: return AuthResponse.Error("Verification ID not found. Please request OTP again.")
+            val credential = PhoneAuthProvider.getCredential(id, otp)
+            suspendCancellableCoroutine { continuation ->
+                signInWithPhoneCredential(credential, continuation)
             }
         } catch (e: Exception) {
-            AuthResult.Error(e.message ?: "OTP verification failed")
+            AuthResponse.Error(e.message ?: "OTP verification failed")
         }
     }
 
+    /**
+     * Internal helper to sign into Firebase using phone credentials.
+     */
     private fun signInWithPhoneCredential(
         credential: PhoneAuthCredential,
-        continuation: CancellableContinuation<AuthResult>
+        continuation: CancellableContinuation<AuthResponse>
     ) {
         auth.signInWithCredential(credential)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
-                    Log.d(TAG, "Phone sign in successful")
-                    val user = task.result.user
-                    if (continuation.isActive) {
-                        continuation.resume(AuthResult.Success(user))
-                    }
+                    if (continuation.isActive)
+                        continuation.resume(AuthResponse.Success(task.result.user))
                 } else {
-                    val errorMsg = task.exception?.message ?: "Phone sign in failed"
-                    Log.e(TAG, "Phone sign in failed: $errorMsg")
-                    if (continuation.isActive) {
-                        continuation.resume(AuthResult.Error(errorMsg))
-                    }
+                    val msg = task.exception?.message ?: "Phone sign in failed"
+                    Log.e(TAG, "Phone sign in failed: $msg")
+                    if (continuation.isActive) continuation.resume(AuthResponse.Error(msg))
                 }
             }
     }
 
+    // -------------------------------------------------------------------------
+    // Admin / User Management
+    // -------------------------------------------------------------------------
+
     override suspend fun isUserAdmin(userId: String): Boolean {
         return try {
-            val document = usersCollection.document(userId).get().await()
-            document.getBoolean("isAdmin") ?: false
+            val doc = usersCollection.document(userId).get().await()
+            doc.getBoolean(FIELD_ADMIN) ?: false
         } catch (e: Exception) {
             Log.e(TAG, "Error checking admin status: ${e.message}", e)
             false
         }
     }
 
-    override suspend fun getAllUsers(): Result<List<User>> {
+    override suspend fun isUserSuperAdmin(userId: String): Boolean {
+        return try {
+            val doc = usersCollection.document(userId).get().await()
+            doc.getBoolean(FIELD_SUPER_ADMIN) ?: false
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking superAdmin status: ${e.message}", e)
+            false
+        }
+    }
+
+    override suspend fun getAllUsers(): Result<List<UserProfile?>> {
         return try {
             val snapshot = usersCollection.get().await()
-            val users = snapshot.toObjects(User::class.java)
-            Result.success(users)
+            Result.success(snapshot.toObjects(UserProfile::class.java))
         } catch (e: Exception) {
-            Log.e(TAG, "Error fetching all users: ${e.message}", e)
+            Log.e(TAG, "Error fetching users: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun searchUsers(query: String): Result<List<UserProfile>> {
+        return try {
+            val snapshot = usersCollection.get().await()
+            val filtered = snapshot.documents
+                .mapNotNull { it.toObject(UserProfile::class.java) }
+                .filter { user ->
+                    user.fullName.contains(query, ignoreCase = true) ||
+                            user.email.contains(query, ignoreCase = true)
+                }
+            Result.success(filtered)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error searching users: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun toggleAdminStatus(userId: String, makeAdmin: Boolean): Result<Unit> {
+        return try {
+            usersCollection.document(userId).update(FIELD_ADMIN, makeAdmin).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun deleteUser(userId: String): Result<Unit> {
+        return try {
+            usersCollection.document(userId).delete().await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun updateUserProfile(userId: String, profileUpdates: Map<String, Any>): Result<Unit> {
+        return try {
+            usersCollection.document(userId).update(profileUpdates).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
             Result.failure(e)
         }
     }
 }
+
+// -------------------------------------------------------------------------
+// Task.await() extension
+// -------------------------------------------------------------------------
 
 suspend fun <T> Task<T>.await(): T {
     return suspendCancellableCoroutine { cont ->
@@ -538,4 +568,3 @@ suspend fun <T> Task<T>.await(): T {
         }
     }
 }
-

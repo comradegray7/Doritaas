@@ -19,8 +19,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -77,6 +75,10 @@ import com.example.myapp.view.components.CustomSpacer
  * @see AdminGuard for admin-level protection
  */
 
+// =============================================================================
+// AuthGuard — requires any signed-in user
+// =============================================================================
+
 @Composable
 fun AuthGuard(
     viewModel: AuthViewModel = hiltViewModel(),
@@ -85,31 +87,38 @@ fun AuthGuard(
 ) {
     val authState by viewModel.authState.collectAsState()
 
-    LaunchedEffect(authState.isLoading, authState.isSignedIn) {
-        // Only redirect once the auth check has actually completed
-        if (!authState.isLoading && !authState.isSignedIn) {
+    // Wait for the role check to finish before deciding to redirect.
+    // Using isInitialized as the gate prevents a flash-redirect while
+    // Firebase Auth is still resolving the session.
+    LaunchedEffect(authState.isInitialized, authState.isSignedIn) {
+        if (authState.isInitialized && !authState.isSignedIn) {
             onUnauthenticated()
         }
     }
 
     when {
-        authState.isLoading -> {
+        // Still resolving session — show spinner
+        !authState.isInitialized || authState.isLoading -> {
             Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
+                modifier          = Modifier.fillMaxSize(),
+                contentAlignment  = Alignment.Center
             ) {
                 CustomCircularProgressIndicator()
             }
         }
 
+        // Session confirmed — show content
         authState.isSignedIn -> content()
+
+        // Otherwise the LaunchedEffect above handles the redirect;
+        // show nothing while navigation settles
     }
 }
 
-/**
- * Guards routes that require admin privileges
- * Redirects to shop if user is not admin
- */
+// =============================================================================
+// AdminGuard — requires admin OR superAdmin
+// =============================================================================
+
 @Composable
 fun AdminGuard(
     viewModel: AuthViewModel = hiltViewModel(),
@@ -118,43 +127,24 @@ fun AdminGuard(
 ) {
     val windowSizeClass = LocalWindowSizeConstant.current
     val authState by viewModel.authState.collectAsState()
-    val hasCheckedAdmin = remember { mutableStateOf(false) }
-    val hasRedirected = remember { mutableStateOf(false) }
 
-    // Wait for auth to be ready and admin status to be determined
-    LaunchedEffect(authState.isLoading, authState.isSignedIn, authState.isAdmin) {
-        // Skip if still loading or already redirected
-        if (authState.isLoading || hasRedirected.value) return@LaunchedEffect
+    // Derived: user qualifies if they are admin or superAdmin
+    val isAuthorized = authState.isSignedIn && (authState.admin || authState.superAdmin)
 
-        when {
-            !authState.isSignedIn -> {
-                Log.d("AdminGuard", "Unauthorized: User not signed in")
-                hasRedirected.value = true
-                onUnauthorized()
-            }
-
-            !authState.isAdmin -> {
-                Log.d("AdminGuard", "Unauthorized: User not admin")
-                hasRedirected.value = true
-                onUnauthorized()
-            }
-
-            else -> {
-                // Admin check complete and user is admin
-                if (!hasCheckedAdmin.value) {
-                    Log.d("AdminGuard", "Authorized: User is admin")
-                    hasCheckedAdmin.value = true
-                }
-            }
+    // Only redirect once isInitialized is true so we never jump while
+    // the ViewModel is still fetching admin/superAdmin flags from Firestore.
+    LaunchedEffect(authState.isInitialized, isAuthorized) {
+        if (authState.isInitialized && !isAuthorized) {
+            Log.d("AdminGuard", "Unauthorized — isSignedIn=${authState.isSignedIn} admin=${authState.admin} superAdmin=${authState.superAdmin}")
+            onUnauthorized()
         }
     }
 
-    // Handle UI states
     when {
-        // Show loading while initializing or checking admin status
-        authState.isLoading || (!authState.isAdmin && authState.isSignedIn && !hasCheckedAdmin.value) -> {
+        // Still resolving session or role flags — show spinner
+        !authState.isInitialized || authState.isLoading -> {
             Box(
-                modifier = Modifier.fillMaxSize(),
+                modifier         = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
                 Column(
@@ -164,71 +154,45 @@ fun AdminGuard(
                     CustomCircularProgressIndicator()
                     Spacer(modifier = Modifier.height(windowSizeClass.basePadding))
                     Text(
-                        text = if (authState.isLoading)
-                            "Loading..."
-                        else
-                            "Verifying admin access...",
+                        text  = "Verifying access...",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
             }
         }
 
-        // Show content if authenticated and admin
-        authState.isSignedIn && authState.isAdmin -> {
-            // Reset redirect flag when content is shown
-            LaunchedEffect(Unit) {
-                hasRedirected.value = false
-            }
-            content()
-        }
+        // Authorized — show the admin content
+        isAuthorized -> content()
 
-        // Show unauthorized screen
+        // Not authorized — show a clear access-denied screen while the
+        // LaunchedEffect above triggers navigation away.
         else -> {
-            // Reset states when showing unauthorized
-            LaunchedEffect(Unit) {
-                hasCheckedAdmin.value = false
-                hasRedirected.value = false
-            }
-
             Box(
-                modifier = Modifier.fillMaxSize(),
+                modifier         = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
-                    modifier = Modifier.padding(customSpacing.custom16)
+                    modifier            = Modifier.padding(customSpacing.custom16)
                 ) {
                     CustomIcon(
-                        icon = Icons.Filled.Lock,
+                        icon               = Icons.Filled.Lock,
                         contentDescription = "Unauthorized",
-                        iconSize = customSpacing.custom64,
-                        tint = MaterialTheme.colorScheme.error
+                        iconSize           = customSpacing.custom64,
+                        tint               = MaterialTheme.colorScheme.error
                     )
-
                     CustomSpacer()
-
                     Text(
-                        text = stringResource(R.string.access_denied),
+                        text  = stringResource(R.string.access_denied),
                         style = MaterialTheme.typography.headlineMedium
                     )
-
                     CustomSpacer()
-
                     Text(
-                        text = stringResource(R.string.admin_privileges),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        text      = stringResource(R.string.admin_privileges),
+                        style     = MaterialTheme.typography.bodyMedium,
+                        color     = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
-                    )
-
-                    CustomSpacer()
-
-                    Text(
-                        text = "SignedIn=${authState.isSignedIn}, isAdmin=${authState.isAdmin}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
                     )
                 }
             }
@@ -236,11 +200,9 @@ fun AdminGuard(
     }
 }
 
-
-/**
- * Guards routes that should only be accessible when NOT authenticated.
- * Provides multiple options for handling authenticated users.
- */
+// =============================================================================
+// GuestGuard — should only be seen when NOT signed in
+// =============================================================================
 
 @Composable
 fun GuestGuard(
@@ -253,82 +215,44 @@ fun GuestGuard(
     val authState by viewModel.authState.collectAsState()
     val context = LocalContext.current
 
-    LaunchedEffect(authState.isSignedIn) {
-        if (authState.isSignedIn) {
-            when (authenticatedAction) {
-                AuthenticatedAction.Redirect -> {
-                    onAuthenticated?.invoke()
-                }
+    LaunchedEffect(authState.isInitialized, authState.isSignedIn) {
+        if (!authState.isInitialized) return@LaunchedEffect
+        if (!authState.isSignedIn) return@LaunchedEffect
 
-                AuthenticatedAction.Toast -> {
-                    Toast.makeText(
-                        context,
-                        "Please sign out to access this page",
-                        Toast.LENGTH_LONG
-                    ).show()
-                    onAuthenticated?.invoke()
-                }
-
-                AuthenticatedAction.Snackbar -> {
-                    snackBarHostState?.showSnackbar(
-                        message = "You're already signed in",
-                        actionLabel = "OK",
-                        duration = SnackbarDuration.Short
-                    )
-                    onAuthenticated?.invoke()
-                }
-
-                AuthenticatedAction.None -> {
-                    // Do nothing, just show the content
-                }
+        when (authenticatedAction) {
+            AuthenticatedAction.Redirect -> {
+                onAuthenticated?.invoke()
             }
+            AuthenticatedAction.Toast -> {
+                Toast.makeText(
+                    context,
+                    "Please sign out to access this page",
+                    Toast.LENGTH_LONG
+                ).show()
+                onAuthenticated?.invoke()
+            }
+            AuthenticatedAction.Snackbar -> {
+                snackBarHostState?.showSnackbar(
+                    message     = "You're already signed in",
+                    actionLabel = "OK",
+                    duration    = SnackbarDuration.Short
+                )
+                onAuthenticated?.invoke()
+            }
+            AuthenticatedAction.None -> { /* show content as-is */ }
         }
     }
 
-    // Always show content, but handle authenticated state appropriately
     content()
 }
 
-/**
- * AuthenticatedAction - Actions for handling authenticated users in guest routes
- *
- * Sealed class defining different ways to handle authenticated users
- * attempting to access guest-only routes.
- *
- * ## Actions
- * - **None**: No action, just show content (default)
- * - **Redirect**: Navigate away immediately without message
- * - **Toast**: Show toast message then redirect
- * - **Snackbar**: Show snackbar message then redirect
- *
- * @see GuestGuard for usage
- */
+// =============================================================================
+// AuthenticatedAction
+// =============================================================================
+
 sealed class AuthenticatedAction {
-    /**
-     * None
-     *
-     * Singleton object for [TODO: Add description]
-     */
-    object None : AuthenticatedAction()
-
-    /**
-     * Redirect
-     *
-     * Singleton object for [TODO: Add description]
-     */
+    object None     : AuthenticatedAction()
     object Redirect : AuthenticatedAction()
-
-    /**
-     * Toast
-     *
-     * Singleton object for [TODO: Add description]
-     */
-    object Toast : AuthenticatedAction()
-
-    /**
-     * Snackbar
-     *
-     * Singleton object for [TODO: Add description]
-     */
+    object Toast    : AuthenticatedAction()
     object Snackbar : AuthenticatedAction()
 }

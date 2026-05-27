@@ -166,6 +166,9 @@ dependencies {
     // Cloudinary
     implementation(libs.cloudinary.android)
 
+//   kompose country code picker
+   implementation(libs.komposecountrycodepicker)
+
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

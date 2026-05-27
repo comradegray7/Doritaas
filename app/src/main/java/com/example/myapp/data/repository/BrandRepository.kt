@@ -32,33 +32,48 @@ class BrandRepository @Inject constructor(
      * Checks if a brand with the same name (case-insensitive) already exists.
      * If not, generates a new ID and saves the brand to Firestore.
      *
-     * @param brandName Name of the new brand
      * @return Result containing the created [BrandItem] or an error
+     */
+    /**
+     * Create a new brand with strict case-insensitive duplication check.
      */
     suspend fun createBrand(brandName: String): Result<BrandItem> {
         return try {
-            // Check if brand already exists (case-insensitive)
+            val trimmedName = brandName.trim()
+
+            // 1. Efficient Query: Check if the exact name exists
+            // Note: Firestore queries are case-sensitive by default.
+            // To be 100% safe across all cases, we fetch and then verify.
             val existingSnapshot = brandsCollection
+                .whereEqualTo("brandName", trimmedName)
                 .get()
                 .await()
 
-            val isDuplicate = existingSnapshot.documents.any { doc ->
-                val existingBrand = doc.getString("brandName") ?: ""
-                existingBrand.equals(brandName, ignoreCase = true)
+            // 2. Double-check in memory (handles variations like "Nike" vs "nike" if
+            // your DB has mixed data)
+            if (!existingSnapshot.isEmpty) {
+                return Result.failure(Exception("Brand '$trimmedName' already exists"))
+            }
+
+            // 3. Fallback: Check all if you suspect data was entered inconsistently before
+            val allSnapshot = brandsCollection.get().await()
+            val isDuplicate = allSnapshot.documents.any { doc ->
+                val existing = doc.getString("brandName") ?: ""
+                existing.equals(trimmedName, ignoreCase = true)
             }
 
             if (isDuplicate) {
-                Log.w(TAG, "Brand already exists: $brandName")
-                return Result.failure(Exception("Brand '$brandName' already exists"))
+                Log.w(TAG, "Brand already exists (case-insensitive check): $trimmedName")
+                return Result.failure(Exception("Brand '$trimmedName' already exists"))
             }
 
+            // 4. Create new document
             val brandId = brandsCollection.document().id
             val brand = BrandItem(
                 id = brandId,
-                brandName = brandName
+                brandName = trimmedName
             )
 
-            // Use a map to ensure field names match exactly
             val brandMap = hashMapOf(
                 "id" to brand.id,
                 "brandName" to brand.brandName
@@ -75,7 +90,6 @@ class BrandRepository @Inject constructor(
             Result.failure(Exception("Failed to create brand: ${e.message}"))
         }
     }
-
     /**
      * Retrieve all brands.
      *

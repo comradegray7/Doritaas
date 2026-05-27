@@ -73,7 +73,7 @@ class MainActivity : ComponentActivity() {
             // Determine start destination
             val startDestination = when {
                 !authState.isSignedIn -> AppRoutes.ON_BOARDING
-                authState.isAdmin -> AppRoutes.ADMIN_DASHBOARD
+                authState.admin -> AppRoutes.ADMIN_DASHBOARD
                 else -> AppRoutes.SHOP
             }
 

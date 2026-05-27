@@ -63,7 +63,6 @@ import com.example.myapp.view.components.custom.buttons.CustomButton
 import com.example.myapp.view.utils.CustomShape
 import com.google.firebase.Timestamp
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 /**
  * ProfileScreen - User account management and overview.
@@ -113,7 +112,7 @@ fun ProfileScreen(
     var loading by remember { mutableStateOf(true) }
     var profileCreationAttempted by remember { mutableStateOf(false) }
 
-    val scope = rememberCoroutineScope()
+    rememberCoroutineScope()
 
     // Create a better default profile from auth data
     val defaultProfile = remember(authState.user) {
@@ -200,13 +199,13 @@ fun ProfileScreen(
             if (loading || isProfileLoading) {
                 PaddedSection(
                     alignment = Alignment.CenterHorizontally,
-                    content =  {
+                    content = {
                         ProfileCardShimmer()
                     }
                 )
             } else {
                 CustomLazyColumn {
-                    item{
+                    item {
                         // Network Status Banner
                         // Network Indicator in top bar
 
@@ -294,9 +293,8 @@ fun ProfileScreen(
                                                 label = R.string.sign_in,
                                                 onClick = { onSignInClick() },
                                             )
-
                                         } else {
-                                            if (authState.isAdmin) {
+                                            if (authState.admin || authState.superAdmin) {
                                                 CustomButton(
                                                     label = R.string.dashboard,
                                                     onClick = {
@@ -324,11 +322,9 @@ fun ProfileScreen(
                                                     profileCreationAttempted = false
                                                     profileViewModel.stopRealtimeUpdates()
                                                     profileViewModel.clearProfile()
-
-                                                    scope.launch {
-                                                        authViewModel.signOut()
-                                                        onSignOut()
-                                                    }
+                                                    // signOut() is NOT suspend — it launches its own coroutine internally.
+                                                    // Call it directly; do NOT wrap in scope.launch or onSignOut() fires twice.
+                                                    authViewModel.signOut()
                                                     onSignOut()
                                                 },
                                             )
@@ -384,7 +380,7 @@ private fun BoxScope.ProfileCard(
                 Box(
                     modifier = Modifier
                         .size(windowSizeConstant.customSpacerMedium)
-                        .clip( CustomShape.circleShape())
+                        .clip(CustomShape.circleShape())
                         .background(
                             Brush.radialGradient(
                                 colors = listOf(

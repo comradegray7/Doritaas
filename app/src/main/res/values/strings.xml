@@ -365,6 +365,7 @@
 
     <!-- Checkout with Prime -->
     <string name="order_summary">Order Summary</string>
+    <string name="order_summary_with_prime">Order Summary with Prime</string>
     <string name="filter_orders">Filter Orders</string>
     <string name="prime_discount">Prime Discount (20%%)</string>
 
@@ -494,5 +495,15 @@ Review them anytime and easily move them to your bag.</string>
     //face book app id and client token
     ]]>
     <string name="web_client_id">759628092968-o7mkfqqfvpctbsu423jr1at5prvd3th4.apps.googleusercontent.com</string>
+    <string name="manage_users">Manage Users\n</string>
+    <string name="search_users">Search Users</string>
+    <string name="toggle_admin">Update Admin status</string>
+    <string name="user_error">User Error</string>
+    <string name="display_name">Display Name</string>
+    <string name="add_user">Add User</string>
+    <string name="compare_products">Compare Products</string>
+    <string name="go_back">Go Back</string>
+    <string name="compare">Compare\n</string>
+    <string name="vat">VAT</string>
 
 </resources>

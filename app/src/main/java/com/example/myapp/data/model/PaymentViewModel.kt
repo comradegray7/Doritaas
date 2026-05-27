@@ -115,7 +115,7 @@ class PaymentViewModel @Inject constructor(
         val tax = subtotal * 0.1 // 10% tax
         var discount = 0.0
         var primeDiscountAmount = 0.0
-        var primeShippingSaved = 0.0
+        var primeShippingSaved = shippingCost
         val appliedBenefits = mutableListOf<AppliedBenefit>()
 
         //  Check if user is Prime member
@@ -195,6 +195,18 @@ class PaymentViewModel @Inject constructor(
         )
     }
 
+
+    /**
+     * Update the checkout summary details locally (without fetching Stripe config)
+     */
+    fun updateCheckoutSummary(productItems: List<ProductItem>) {
+        viewModelScope.launch {
+            val summary = calculateCheckoutSummary(productItems)
+            _checkoutSummary.value = summary
+            val totalAmountInCents = (summary.total * 100).toInt()
+            _currentAmount.value = totalAmountInCents
+        }
+    }
 
     fun fetchConfiguration(
         customerEmail: String?,

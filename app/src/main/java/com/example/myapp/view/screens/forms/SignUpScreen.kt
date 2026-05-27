@@ -20,6 +20,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,7 +52,8 @@ import com.example.myapp.view.components.custom.buttons.CustomTextButton
 import com.example.myapp.view.components.isValidEmail
 import com.example.myapp.view.components.isValidFullName
 import com.example.myapp.view.components.isValidPassword
-import com.example.myapp.view.components.isValidPhone
+import com.joelkanyi.jcomposecountrycodepicker.component.KomposeCountryCodePicker
+import com.joelkanyi.jcomposecountrycodepicker.component.rememberKomposeCountryCodePickerState
 import kotlinx.coroutines.delay
 
 /**
@@ -92,50 +94,54 @@ fun SignUpScreen(
     val authState by authViewModel.authState.collectAsState()
     val isProfileLoading by profileViewModel.isLoading.collectAsState()
 
-    // State for terms of service agreement checkbox
-    var isAgreed by remember { mutableStateOf(false) }
+    // ---- Country code picker state ----
+    val phonePickerState = rememberKomposeCountryCodePickerState(
+        showCountryCode = true,
+        showCountryFlag = true,
+    )
 
-    // Form state variables - store user input values
-    var fullName by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var phone by remember { mutableStateOf("") }
+    // Raw digits the user types (no country prefix)
+    var phoneNumber by rememberSaveable { mutableStateOf("") }
 
-    // Validation state variables - store error messages for each field
+    // ---- Form fields — all rememberSaveable so they survive config changes ----
+    var isAgreed by rememberSaveable { mutableStateOf(false) }
+    var fullName by rememberSaveable { mutableStateOf("") }
+    var email by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+
+    // ---- Validation error messages ----
     var fullNameError by remember { mutableStateOf("") }
     var emailError by remember { mutableStateOf("") }
     var passwordError by remember { mutableStateOf("") }
-    var termsError by remember { mutableStateOf("") }
     var phoneError by remember { mutableStateOf("") }
+    var termsError by remember { mutableStateOf("") }
+
+    // ---- Snack bar ----
     var currentSnackBarData by remember { mutableStateOf<SnackBarData?>(null) }
     var showSnackBar by remember { mutableStateOf(false) }
 
-    // Handle successful authentication
+    // ---- Navigate after successful sign-up + profile creation ----
     LaunchedEffect(authState.isSignedIn) {
         if (authState.isSignedIn && authState.user != null) {
-            // Create user profile after successful sign up
             val userProfile = UserProfile(
                 fullName = fullName,
                 displayName = fullName.split(" ").firstOrNull() ?: fullName,
                 email = email,
-                phone = phone,
+                // Use the full E.164 number (e.g. "+265991234567")
+                phone = phonePickerState.getFullPhoneNumber(),
+                admin = false
             )
-
             profileViewModel.createProfile(authState.user!!.uid, userProfile)
-
-            // Navigate to home after profile creation
-            delay(3200L) // Give time for profile creation
+            delay(3200L)
             onNavigateToShop()
         }
     }
 
-    // Handle snack bar data
+    // ---- Collect snack bar events ----
     LaunchedEffect(Unit) {
         authViewModel.snackBarData.collect { snackBarData ->
             currentSnackBarData = snackBarData
             showSnackBar = true
-
-            // Auto-dismiss after duration (unless indefinite)
             if (snackBarData.duration != SnackbarDuration.Indefinite) {
                 delay(
                     when (snackBarData.duration) {
@@ -149,96 +155,68 @@ fun SignUpScreen(
         }
     }
 
-    // Clear errors when auth state changes
-    LaunchedEffect(authState.error) {
-        authState.error?.let { error ->
-        }
-    }
+    // ---- Validation functions ----
 
-    // Validation functions
-    /**
-     * validateFullName
-     */
     fun validateFullName(): Boolean {
         return when {
             fullName.isEmpty() -> {
-                fullNameError = "Full name is required"
-                false
+                fullNameError = "Full name is required"; false
             }
+
             !isValidFullName(fullName) -> {
-                fullNameError = "Please enter first and last name"
-                false
+                fullNameError = "Please enter first and last name"; false
             }
+
             else -> {
-                fullNameError = ""
-                true
+                fullNameError = ""; true
             }
         }
     }
 
-    /**
-     * validateEmail
-     */
     fun validateEmail(): Boolean {
         return when {
             email.isEmpty() -> {
-                emailError = "Email is required"
-                false
+                emailError = "Email is required"; false
             }
+
             !isValidEmail(email) -> {
-                emailError = "Please enter a valid email address"
-                false
+                emailError = "Please enter a valid email address"; false
             }
+
             else -> {
-                emailError = ""
-                true
+                emailError = ""; true
             }
         }
     }
 
-    /**
-     * validatePassword
-     */
     fun validatePassword(): Boolean {
         return when {
             password.isEmpty() -> {
-                passwordError = "Password is required"
-                false
+                passwordError = "Password is required"; false
             }
+
             !isValidPassword(password) -> {
-                passwordError = "Password must be at least 8 characters with letters and numbers"
-                false
+                passwordError =
+                    "Password must be at least 8 characters with letters and numbers"; false
             }
+
             else -> {
-                passwordError = ""
-                true
+                passwordError = ""; true
             }
         }
     }
 
-    /**
-     * validatePhone
-     */
     fun validatePhone(): Boolean {
-        return when {
-            phone.isEmpty() -> {
-                phoneError = "Phone number is required"
-                false
-            }
-            !isValidPhone(phone) -> {
-                phoneError = "Please enter a valid phone number"
-                false
-            }
-            else -> {
-                phoneError = ""
-                true
-            }
+        // Delegate to the library's own validator — it checks country-specific rules
+        return if (!phonePickerState.isPhoneNumberValid()) {
+            phoneError = "Please enter a valid phone number"
+            false
+        } else {
+            phoneError = ""
+            true
         }
     }
 
-    /**
-     * validateTerms
-     */
     fun validateTerms(): Boolean {
         return if (!isAgreed) {
             termsError = "You must agree to the terms and conditions"
@@ -249,18 +227,20 @@ fun SignUpScreen(
         }
     }
 
-    /**
-     * validateForm
-     */
     fun validateForm(): Boolean {
-        val isFullNameValid = validateFullName()
-        val isEmailValid = validateEmail()
-        val isPasswordValid = validatePassword()
-        val isPhoneValid = validatePhone()
-        val isTermsValid = validateTerms()
+        // Evaluate ALL fields so every error shows at once
+        val a = validateFullName()
+        val b = validateEmail()
+        val c = validatePassword()
+        val d = validatePhone()
+        val e = validateTerms()
 
-        return isFullNameValid && isEmailValid && isPasswordValid && isPhoneValid && isTermsValid
+        if (authState.error != null) authViewModel.clearError()
+
+        return a && b && c && d && e
     }
+
+    // ---- UI ----
 
     val scrollState = rememberScrollState()
 
@@ -270,52 +250,42 @@ fun SignUpScreen(
         showBackArrow = false,
         verticalArrangement = Arrangement.Center,
         content = {
-            // Network Indicator in top bar
-            if (!networkState.hasInternet) {
 
+            // Network banner
+            if (!networkState.hasInternet) {
                 CustomSpacer()
                 NetworkIndicator(networkState = networkState)
                 CustomSpacer()
-
-                PaddedSection(
-                    alignment = Alignment.CenterHorizontally,
-                    content = {
-                        NetworkStatusBanner(
-                            networkState = networkState,
-                        )
-                    }
-                )
-
+                PaddedSection(alignment = Alignment.CenterHorizontally, content = {
+                    NetworkStatusBanner(networkState = networkState)
+                })
                 CustomSpacer()
             }
 
+            // Floating snack bar
             currentSnackBarData?.let { snackBarData ->
-                PaddedSection(
-                    alignment = Alignment.CenterHorizontally,
-                    content = {
-                        FloatingCustomSnackBar(
-                            snackBarData = snackBarData,
-                            visible = showSnackBar,
-                            modifier = Modifier
-                                .navigationBarsPadding()
-                                .padding(top = windowSizeClass.baseSize),
-                            onDismiss = {
-                                showSnackBar = false
-                                currentSnackBarData = null
-                            }
-                        )
-                    }
-                )
+                PaddedSection(alignment = Alignment.CenterHorizontally, content = {
+                    FloatingCustomSnackBar(
+                        snackBarData = snackBarData,
+                        visible = showSnackBar,
+                        modifier = Modifier
+                            .navigationBarsPadding()
+                            .padding(top = windowSizeClass.baseSize),
+                        onDismiss = {
+                            showSnackBar = false
+                            currentSnackBarData = null
+                        }
+                    )
+                })
             }
 
             FormContainer(scrollState = scrollState) {
+
                 Logo()
 
-                HeadlineWidget(
-                    middleText = R.string.create_account,
-                )
+                HeadlineWidget(middleText = R.string.create_account)
 
-                // Show auth error if any
+                // Auth error card
                 authState.error?.let { error ->
                     Card(
                         modifier = Modifier
@@ -335,7 +305,6 @@ fun SignUpScreen(
                                 color = MaterialTheme.colorScheme.onErrorContainer,
                                 modifier = Modifier.weight(1f)
                             )
-
                             CustomTextButton(
                                 onClick = { authViewModel.clearError() },
                                 label = R.string.dismiss
@@ -344,7 +313,7 @@ fun SignUpScreen(
                     }
                 }
 
-                // Full name input field
+                // Full name
                 CustomTextField(
                     label = R.string.full_name,
                     placeholder = R.string.enter_full_name,
@@ -360,7 +329,7 @@ fun SignUpScreen(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
                 )
 
-                // Email input field
+                // Email
                 CustomTextField(
                     label = R.string.email,
                     placeholder = R.string.enter_email,
@@ -376,22 +345,31 @@ fun SignUpScreen(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
                 )
 
-                // Phone input field
+                // Phone + country code picker
                 CustomTextField(
                     label = R.string.phone,
                     placeholder = R.string.enter_phone,
-                    value = phone,
+                    value = phoneNumber,
                     onValueChange = {
-                        phone = it
+                        phoneNumber = it
+                        // Re-validate live once the user has already tried submitting
                         if (phoneError.isNotEmpty()) validatePhone()
                     },
+                    leadingIcon = {
+                        KomposeCountryCodePicker(
+                            modifier = Modifier,
+                            showOnlyCountryCodePicker = true,
+                            text = phoneNumber,
+                            state = phonePickerState,
+                        )
+                    },
                     isError = phoneError.isNotEmpty(),
-                    errorMessage = phoneError,
+                    errorMessage = phoneError,          // rendered by CustomTextField — no duplicate Text needed
                     enabled = !authState.isLoading && !isProfileLoading,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
                 )
 
-                // Password input field
+                // Password
                 CustomTextField(
                     label = R.string.password,
                     placeholder = R.string.enter_password,
@@ -408,26 +386,23 @@ fun SignUpScreen(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
                 )
 
-                // Terms of service agreement
-                PaddedSection(
-                    alignment = Alignment.CenterHorizontally,
-                    content = {
-                        TermsOfServiceAndUse(
-                            isChecked = isAgreed,
-                            onCheckedChange = {
-                                isAgreed = it
-                                if (termsError.isNotEmpty()) validateTerms()
-                            },
-                            termsUrl = "https://example.com/terms-of-service",
-                            privacyUrl = "https://example.com/privacy-policy",
-                            errorMessage = termsError,
-                            isError = termsError.isNotEmpty(),
-                            enabled = !authState.isLoading && !isProfileLoading
-                        )
-                    }
-                )
+                // Terms of service
+                PaddedSection(alignment = Alignment.CenterHorizontally, content = {
+                    TermsOfServiceAndUse(
+                        isChecked = isAgreed,
+                        onCheckedChange = {
+                            isAgreed = it
+                            if (termsError.isNotEmpty()) validateTerms()
+                        },
+                        termsUrl = "https://example.com/terms-of-service",
+                        privacyUrl = "https://example.com/privacy-policy",
+                        errorMessage = termsError,
+                        isError = termsError.isNotEmpty(),
+                        enabled = !authState.isLoading && !isProfileLoading
+                    )
+                })
 
-                // Sign Up Button
+                // Sign up
                 CustomButton(
                     label = R.string.sign_up,
                     onClick = {
@@ -439,9 +414,9 @@ fun SignUpScreen(
                     isLoading = authState.isLoading || isProfileLoading
                 )
 
-                // Navigation to sign in screen
+                // Already have an account?
                 CustomRow(
-                    leadingText = R.string.already_have_account,  
+                    leadingText = R.string.already_have_account,
                     trailingText = R.string.sign_in,
                     onClick = { onSignInClick() }
                 )

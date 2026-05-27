@@ -145,11 +145,28 @@ class ProductCrudViewModel @Inject constructor(
      */
     fun getImageLoader(): ImageLoader = imageLoader
 
+    // 1. Guard flag to prevent double initialization
+    private var isInitialized = false
+
     companion object {
         private const val TAG = "ProductCrudViewModel"
         private const val PAGE_SIZE = 20
         private const val KEY_SEARCH_QUERY = "search_query"
         private const val KEY_PENDING_IMAGE_SEARCH = "pending_image_search"
+    }
+
+
+    /**
+     * initializeShopContent - The consolidated entry point for ShopScreen.
+     * Prevents the "Double Refresh" by checking the [isInitialized] flag.
+     */
+    fun initializeShopContent(isLoggedIn: Boolean) {
+        if (isInitialized) {
+            Log.d(TAG, "Shop content already initialized. Skipping.")
+            return
+        }
+        refreshProducts(isLoggedIn)
+        isInitialized = true
     }
 
     private val _productState = MutableStateFlow(ProductCrudState())
@@ -281,71 +298,84 @@ class ProductCrudViewModel @Inject constructor(
      * loadAllTaggedProducts
      *
      */
+//    fun loadAllTaggedProducts() {
+//        viewModelScope.launch {
+//            _productState.update { it.copy(isLoading = true) }
+//
+//            try {
+//                val featuredDeferred = async {
+//                    productRepository.getProductsByTag("featured", limit = 20)
+//                }
+//
+//                val trendingDeferred = async {
+//                    productRepository.getProductsByTag("trending", limit = 20)
+//                }
+//
+//                val flashDealsDeferred = async {
+//                    productRepository.getProductsByTag("flash_deal", limit = 20)
+//                }
+//
+//                val primeEligibleDeferred = async {
+//                    productRepository.getProductsByTag("prime_eligible", limit = 20)
+//                }
+//
+//                val isBestSellerDeferred = async {
+//                    productRepository.getProductsByTag("best_seller", limit = 20)
+//                }
+//
+//                val featured = featuredDeferred.await().getOrNull() ?: emptyList()
+//                val trending = trendingDeferred.await().getOrNull() ?: emptyList()
+//                val flashDeals = flashDealsDeferred.await().getOrNull() ?: emptyList()
+//                val primeEligible = primeEligibleDeferred.await().getOrNull() ?: emptyList()
+//                val bestSeller  = isBestSellerDeferred.await().getOrNull() ?: emptyList()
+//
+//                // Update tagged products map
+//                _taggedProducts.value = mapOf(
+//                    "featured" to featured,
+//                    "trending" to trending,
+//                    "flash_deal" to flashDeals,
+//                    "prime_eligible" to primeEligible,
+//                    "best_seller" to bestSeller
+//                )
+//
+//                // Update state
+//                _productState.update {
+//                    it.copy(
+//                        isLoading = false,
+//                        featuredProducts = featured,
+//                        trendingProducts = trending,
+//                        bestSeller = bestSeller,
+//                        primeEligibleProducts = primeEligible,
+//                        flashDealProducts = flashDeals
+//                    )
+//                }
+//
+//                Log.d(
+//                    TAG,
+//                    "✅ Loaded tagged products - Featured: ${featured.size}, Trending: ${trending.size}"
+//                )
+//            } catch (e: Exception) {
+//                _productState.update {
+//                    it.copy(isLoading = false, error = e.message)
+//                }
+//                Log.e(TAG, "Failed to load tagged products", e)
+//            }
+//        }
+//    }
+
+    /**
+     * Legacy support/Manual trigger for tagged products
+     */
     fun loadAllTaggedProducts() {
+        // This is now redundant during initial load but useful for manual refreshes
         viewModelScope.launch {
-            _productState.update { it.copy(isLoading = true) }
-
-            try {
-                val featuredDeferred = async {
-                    productRepository.getProductsByTag("featured", limit = 20)
-                }
-
-                val trendingDeferred = async {
-                    productRepository.getProductsByTag("trending", limit = 20)
-                }
-
-                val flashDealsDeferred = async {
-                    productRepository.getProductsByTag("flash_deal", limit = 20)
-                }
-
-                val primeEligibleDeferred = async {
-                    productRepository.getProductsByTag("prime_eligible", limit = 20)
-                }
-
-                val isBestSellerDeferred = async {
-                    productRepository.getProductsByTag("best_seller", limit = 20)
-                }
-
-                val featured = featuredDeferred.await().getOrNull() ?: emptyList()
-                val trending = trendingDeferred.await().getOrNull() ?: emptyList()
-                val flashDeals = flashDealsDeferred.await().getOrNull() ?: emptyList()
-                val primeEligible = primeEligibleDeferred.await().getOrNull() ?: emptyList()
-                val bestSeller  = isBestSellerDeferred.await().getOrNull() ?: emptyList()
-
-                // Update tagged products map
-                _taggedProducts.value = mapOf(
-                    "featured" to featured,
-                    "trending" to trending,
-                    "flash_deal" to flashDeals,
-                    "prime_eligible" to primeEligible,
-                    "best_seller" to bestSeller
-                )
-
-                // Update state
-                _productState.update {
-                    it.copy(
-                        isLoading = false,
-                        featuredProducts = featured,
-                        trendingProducts = trending,
-                        bestSeller = bestSeller,
-                        primeEligibleProducts = primeEligible,
-                        flashDealProducts = flashDeals
-                    )
-                }
-
-                Log.d(
-                    TAG,
-                    "✅ Loaded tagged products - Featured: ${featured.size}, Trending: ${trending.size}"
-                )
-            } catch (e: Exception) {
-                _productState.update {
-                    it.copy(isLoading = false, error = e.message)
-                }
-                Log.e(TAG, "Failed to load tagged products", e)
+            val tags = listOf("flash_deal", "prime_eligible")
+            val results = tags.associateWith { tag ->
+                productRepository.getProductsByTag(tag, 15).getOrNull() ?: emptyList()
             }
+            _taggedProducts.value = results
         }
     }
-
     /**
      * setPendingImageSearch
      *
@@ -1123,46 +1153,111 @@ class ProductCrudViewModel @Inject constructor(
      * refreshProducts
      *
      */
-    fun refreshProducts() {
+//    fun refreshProducts() {
+//
+//        if (_isLoading.value) {
+//            Log.d(TAG, "   ⚠️ Already refreshing, skipping...")
+//            return
+//        }
+//
+//        viewModelScope.launch {
+//            _isLoading.value = true
+//            try {
+//                // Clear repository cache
+//                Log.d(TAG, "   🗑️ Clearing cache...")
+//                productRepository.clearCache()
+//
+//                // Reset pagination
+//                currentPage = 0
+//                hasMoreProducts = true
+//
+//                // Reload all data
+//                Log.d(TAG, "   📥 Loading initial data...")
+//                loadInitialData()
+//                Log.d(TAG, "   ✅ Refresh complete")
+//            } catch (e: CancellationException) {
+//                // Rethrow cancellation
+//                throw e
+//            } catch (e: Exception) {
+//                Log.e(TAG, "   ❌ Error refreshing products", e)
+//                _productState.update {
+//                    it.copy(
+//                        isLoading = false,
+//                        error = e.message ?: "Failed to refresh products"
+//                    )
+//                }
+//            } finally {
+//                Log.d(TAG, "   🏁 Setting _isRefreshing to false")
+//                _isLoading.value = false
+//            }
+//        }
+//    }
 
-        if (_isLoading.value) {
-            Log.d(TAG, "   ⚠️ Already refreshing, skipping...")
-            return
-        }
 
+    /**
+     * refreshProducts - Orchestrates a single, unified data fetch for the entire screen.
+     */
+    fun refreshProducts(isLoggedIn: Boolean = false) {
         viewModelScope.launch {
-            _isLoading.value = true
+            _productState.update { it.copy(isLoading = true, error = null) }
+
             try {
-                // Clear repository cache
-                Log.d(TAG, "   🗑️ Clearing cache...")
-                productRepository.clearCache()
+                // Use async to fetch everything in parallel for maximum speed
+                val productsDeferred = async { productRepository.getProducts(0, PAGE_SIZE) }
+                val categoriesDeferred = async { categoryRepository.getCategories() }
+                val tagDeferred = async { tagRepository.getAllTags() }
+                val carouselsDeferred = async { carouselRepository.getCarousels() }
 
-                // Reset pagination
-                currentPage = 0
-                hasMoreProducts = true
+                // Fetch specific tagged sections
+                val featuredDeferred = async { productRepository.getProductsByTag("featured", 15) }
+                val trendingDeferred = async { productRepository.getProductsByTag("trending", 15) }
+                val flashDealsDeferred = async { productRepository.getProductsByTag("flash_deal", 15) }
 
-                // Reload all data
-                Log.d(TAG, "   📥 Loading initial data...")
-                loadInitialData()
-                Log.d(TAG, "   ✅ Refresh complete")
-            } catch (e: CancellationException) {
-                // Rethrow cancellation
-                throw e
-            } catch (e: Exception) {
-                Log.e(TAG, "   ❌ Error refreshing products", e)
+                // Conditional fetch for Prime
+                val primeDeferred = if (isLoggedIn) {
+                    async { productRepository.getProductsByTag("prime_eligible", 15) }
+                } else null
+
+                // Await all values
+                val products = productsDeferred.await().getOrNull() ?: emptyList()
+                val categories = categoriesDeferred.await().getOrNull() ?: emptyList()
+                val tags = tagDeferred.await().getOrNull() ?: emptyList()
+                val carousels = carouselsDeferred.await().getOrNull() ?: emptyList()
+                val featured = featuredDeferred.await().getOrNull() ?: emptyList()
+                val trending = trendingDeferred.await().getOrNull() ?: emptyList()
+                val flashDeals = flashDealsDeferred.await().getOrNull() ?: emptyList()
+                val primeEligible = primeDeferred?.await()?.getOrNull() ?: emptyList()
+
+                // 2. Update the specific Tagged Products map (flash deals, etc.)
+                val tagsMap = mutableMapOf<String, List<ProductItem>>()
+                tagsMap["flash_deal"] = flashDeals
+                if (isLoggedIn) tagsMap["prime_eligible"] = primeEligible
+
+                _taggedProducts.value = tagsMap
+
+                // 3. Update the primary UI state
                 _productState.update {
                     it.copy(
                         isLoading = false,
-                        error = e.message ?: "Failed to refresh products"
+                        products = products,
+                        categories = categories,
+                        tags = tags,
+                        carousel = carousels,
+                        featuredProducts = featured,
+                        trendingProducts = trending,
+                        flashDealProducts = flashDeals,
+                        primeEligibleProducts = primeEligible,
+                        error = null
                     )
                 }
-            } finally {
-                Log.d(TAG, "   🏁 Setting _isRefreshing to false")
-                _isLoading.value = false
+
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.e(TAG, "Error refreshing products: ${e.message}")
+                _productState.update { it.copy(isLoading = false, error = e.message) }
             }
         }
     }
-
     /**
      * clearReviewsState
      *

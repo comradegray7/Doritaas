@@ -55,7 +55,6 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.zIndex
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-
 import com.example.myapp.NetworkManager
 import com.example.myapp.NetworkStatusBanner
 import com.example.myapp.R
@@ -162,12 +161,12 @@ fun ProductDescriptionScreen(
     val membershipStatus = primeState.membership?.status // This is your MembershipStatus enum
 
     val isPrimeMember = isUserPrimeMember(membershipStatus) // Returns true if ACTIVE
-    val isNewArrival = product?.tags?.contains("new_arrival")  
-    val isLimitedEdition = product?.tags?.contains("limited_edition")  
-    val isEcoFriendly = product?.tags?.contains("eco_friendly")  
+    val isNewArrival = product?.tags?.contains("new_arrival")
+    val isLimitedEdition = product?.tags?.contains("limited_edition")
+    val isEcoFriendly = product?.tags?.contains("eco_friendly")
     val isPrimeEligible = product?.tags?.contains("prime_eligible")
-    val isFlashDeal = product?.tags?.contains("flash_deal")  
-    val isBestSeller = product?.tags?.contains("best_seller")  
+    val isFlashDeal = product?.tags?.contains("flash_deal")
+    val isBestSeller = product?.tags?.contains("best_seller")
 
     val showPrimeBadge = isPrimeEligible == true && isPrimeMember
     val networkState = rememberNetworkState(networkManager)
@@ -238,7 +237,7 @@ fun ProductDescriptionScreen(
         product,
         quantity,
         selectedSize,
-        selectedColor,  
+        selectedColor,
         selectedShipping,
         shippingCost
     ) {
@@ -289,6 +288,7 @@ fun ProductDescriptionScreen(
         onNavigateBack = { onBackNavigation() },
         title = R.string.product_details_title,
         bottomBarContent = {
+
             PaddedSection(
                 alignment = Alignment.CenterHorizontally,
                 content = {
@@ -311,6 +311,7 @@ fun ProductDescriptionScreen(
                     )
                 }
             )
+
         },
         content = {
             if (!networkState.hasInternet) {
@@ -410,10 +411,15 @@ fun ProductDescriptionScreen(
                                             contentAlignment = Alignment.TopStart
                                         ) {
                                             val allImages =
-                                                listOfNotNull(product?.imageUrl) + (product?.supportingImageUrls ?: emptyList())
+                                                listOfNotNull(product?.imageUrl) + (product?.supportingImageUrls
+                                                    ?: emptyList())
 
                                             CustomImageContainer(
-                                                data = cloudinaryHelper.getImageUrl(allImages.getOrNull(selectedImageIndex)),
+                                                data = cloudinaryHelper.getImageUrl(
+                                                    allImages.getOrNull(
+                                                        selectedImageIndex
+                                                    )
+                                                ),
                                                 shape = CustomShape.mediumShape(),
                                                 contentDescription = "product image",
                                                 imageLoader = imageLoader
@@ -467,7 +473,13 @@ fun ProductDescriptionScreen(
                     //  Small image gallery for product image selection
                     item {
                         SmallProductImages(
-                            productImages = listOf(cloudinaryHelper.getImageUrl(allImages.getOrNull(selectedImageIndex))),
+                            productImages = listOf(
+                                cloudinaryHelper.getImageUrl(
+                                    allImages.getOrNull(
+                                        selectedImageIndex
+                                    )
+                                )
+                            ),
                             selectedIndex = selectedImageIndex,
                             imageLoader = imageLoader,
                             onImageSelected = { index -> selectedImageIndex = index }
@@ -755,12 +767,12 @@ fun ProductDescriptionScreen(
                         PaddedSection(
                             content = {
                                 ProductColorSelection(
-                                    selectedColor = selectedColor, 
+                                    selectedColor = selectedColor,
                                     onColorSelected = { color ->
                                         selectedColor = color
                                     },
                                     defaultColors = defaultColor,
-                                    multiSelect = false,  
+                                    multiSelect = false,
                                 )
                             })
                     }

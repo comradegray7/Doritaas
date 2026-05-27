@@ -1222,18 +1222,30 @@ fun EditPromotionDialog(
                 }
 
                 // Dates (Start is read-only)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(windowSizeConstant.normalVerticalPadding)
+                ) {
                 Text(
-                    text = "Start: ${formatDate(startDateCalendar.timeInMillis)}",
+                    text =  stringResource(R.string.start),
                     style = windowSizeConstant.bodyTextStyle,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                    DatePickerButton(
+                        selectedDate = startDateCalendar,
+                        onDateSelected = { newDate ->
+                            startDateCalendar.timeInMillis = newDate.timeInMillis
+                        },
+                        label = formatDate(startDateCalendar.timeInMillis)
+                    )
+                }
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(windowSizeConstant.normalVerticalPadding)
                 ) {
                     Text(
-                        text = stringResource(R.string.start),
+                        text = stringResource(R.string.end),
                         style = windowSizeConstant.bodyTextStyle,
                         modifier = Modifier.weight(1f)
                     )

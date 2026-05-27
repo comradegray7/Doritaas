@@ -302,7 +302,6 @@ fun CartScreen(
                         )
                     }
                 )
-
                 CustomSpacer()
             }
 
@@ -483,7 +482,6 @@ fun CartScreen(
         }
     )
 }
-
 
 /**
  * Individual cart item card component.

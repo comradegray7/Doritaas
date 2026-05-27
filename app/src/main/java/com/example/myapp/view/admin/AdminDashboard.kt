@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Shop
 import androidx.compose.material.icons.filled.ShoppingBasket
 import androidx.compose.material.icons.filled.Stars
+import androidx.compose.material.icons.filled.SupervisedUserCircle
 import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material.icons.filled.ViewCarousel
 import androidx.compose.material.icons.filled.Warning
@@ -153,6 +154,7 @@ fun AdminDashboardScreen(
     onOrderClick: () -> Unit,
     onPrimeClick: () -> Unit,
     onTagClick: () -> Unit,
+    onUsersClick: () -> Unit,
     onCarouselClick: () -> Unit,
     analyticsViewModel: AnalyticsViewModel = hiltViewModel(),
     networkManager: NetworkManager = hiltViewModel<NetworkViewModel>().networkManager
@@ -406,6 +408,19 @@ fun AdminDashboardScreen(
                                 )
                             }
                         }
+                    }
+                    // Grid Row 5
+                    item {
+                            // Tags Analytics
+                                MiniAnalyticsCard(
+                                    modifier = windowSizeAppConstants.adaptiveWidthModifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = windowSizeAppConstants.baseSize),
+                                    title = "Users",
+                                    icon = Icons.Filled.SupervisedUserCircle,
+                                    count = analyticsState.usersCount,
+                                    onClick = onUsersClick,
+                                )
                     }
 
                     item {
@@ -670,6 +685,26 @@ fun AdminDashboardScreen(
                             onCarouselClick()
                         }
                         )
+
+                        CustomDropDownMenuItem(text = {
+                            Row {
+                                CustomIcon(
+                                    icon = Icons.Filled.SupervisedUserCircle,
+                                    contentDescription = "View Users"
+                                )
+
+                                CustomSpacer(modifier = Modifier.width(windowSizeAppConstants.normalVerticalPadding))
+
+                                Text(
+                                    stringResource(R.string.manage_users),
+                                    style = windowSizeAppConstants.bodyTextStyle
+                                )
+                            }
+                        }, onClick = {
+                            expanded = false
+                            onUsersClick
+                        }
+                        )
                     }
                 }
             }
@@ -707,6 +742,7 @@ fun AdminDashboardScreen(
  */
 @Composable
 fun MiniAnalyticsCard(
+    modifier: Modifier = Modifier,
     title: String,
     icon: ImageVector,
     count: Int,
@@ -716,7 +752,7 @@ fun MiniAnalyticsCard(
     val windowSizeAppConstants = LocalWindowSizeConstant.current
 
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable { onClick() },
         colors = CardDefaults.cardColors(
