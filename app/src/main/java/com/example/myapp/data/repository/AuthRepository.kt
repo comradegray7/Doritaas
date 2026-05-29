@@ -19,26 +19,19 @@ import com.google.android.gms.tasks.Task
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
-import com.google.firebase.FirebaseException
 import com.google.firebase.FirebaseNetworkException
-import com.google.firebase.FirebaseTooManyRequestsException
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.AuthCredential
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
-import com.google.firebase.auth.FirebaseAuthMissingActivityForRecaptchaException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
-import com.google.firebase.auth.PhoneAuthCredential
-import com.google.firebase.auth.PhoneAuthOptions
-import com.google.firebase.auth.PhoneAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
-import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -96,22 +89,6 @@ interface AuthRepository {
      */
     fun signOut()
 
-    /**
-     * Sends a phone one-time password using Firebase phone authentication.
-     *
-     * @param phoneNumber Full phone number including country code.
-     * @param activity Activity required for reCAPTCHA and phone auth callbacks.
-     * @return [AuthResponse.Success] when the verification code is sent or auto-completed.
-     */
-    suspend fun sendOTP(phoneNumber: String, activity: ComponentActivity): AuthResponse
-
-    /**
-     * Verifies a phone one-time password against the latest stored verification id.
-     *
-     * @param otp Verification code entered by the user.
-     * @return [AuthResponse.Success] with the signed-in user, or [AuthResponse.Error].
-     */
-    suspend fun verifyOTP(otp: String): AuthResponse
 
     /**
      * Returns the UID for the current Firebase user.
@@ -393,87 +370,6 @@ class AuthRepositoryImpl @Inject constructor(
     override fun getCurrentUser(): FirebaseUser? = auth.currentUser
     override fun signOut() = auth.signOut()
     override fun getCurrentUserId(): String? = auth.currentUser?.uid
-
-    // -------------------------------------------------------------------------
-    // OTP / Phone auth
-    // -------------------------------------------------------------------------
-
-    private var verificationId: String? = null
-    private var forceResendingToken: PhoneAuthProvider.ForceResendingToken? = null
-
-    override suspend fun sendOTP(phoneNumber: String, activity: ComponentActivity): AuthResponse {
-        return suspendCancellableCoroutine { continuation ->
-            val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
-                override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-                    signInWithPhoneCredential(credential, continuation)
-                }
-                override fun onVerificationFailed(e: FirebaseException) {
-                    val msg = when (e) {
-                        is FirebaseAuthInvalidCredentialsException          -> "Invalid phone number format"
-                        is FirebaseTooManyRequestsException                 -> "Too many requests. Try again later"
-                        is FirebaseAuthMissingActivityForRecaptchaException -> "reCAPTCHA verification needed"
-                        else                                                 -> e.message ?: "Phone verification failed"
-                    }
-                    Log.e(TAG, "Verification failed: $msg", e)
-                    if (continuation.isActive) continuation.resume(AuthResponse.Error(msg))
-                }
-                override fun onCodeSent(
-                    verificationIdResult: String,
-                    token: PhoneAuthProvider.ForceResendingToken
-                ) {
-                    verificationId      = verificationIdResult
-                    forceResendingToken = token
-                    if (continuation.isActive) continuation.resume(AuthResponse.Success(null))
-                }
-            }
-            try {
-                val options = PhoneAuthOptions.newBuilder(auth)
-                    .setPhoneNumber(phoneNumber)
-                    .setTimeout(60L, TimeUnit.SECONDS)
-                    .setActivity(activity)
-                    .setCallbacks(callbacks)
-                    .build()
-                PhoneAuthProvider.verifyPhoneNumber(options)
-            } catch (e: Exception) {
-                val msg = "Failed to send OTP: ${e.message}"
-                Log.e(TAG, msg, e)
-                if (continuation.isActive) continuation.resume(AuthResponse.Error(msg))
-            }
-        }
-    }
-
-    override suspend fun verifyOTP(otp: String): AuthResponse {
-        return try {
-            val id = verificationId
-                ?: return AuthResponse.Error("Verification ID not found. Please request OTP again.")
-            val credential = PhoneAuthProvider.getCredential(id, otp)
-            suspendCancellableCoroutine { continuation ->
-                signInWithPhoneCredential(credential, continuation)
-            }
-        } catch (e: Exception) {
-            AuthResponse.Error(e.message ?: "OTP verification failed")
-        }
-    }
-
-    /**
-     * Internal helper to sign into Firebase using phone credentials.
-     */
-    private fun signInWithPhoneCredential(
-        credential: PhoneAuthCredential,
-        continuation: CancellableContinuation<AuthResponse>
-    ) {
-        auth.signInWithCredential(credential)
-            .addOnCompleteListener { task ->
-                if (task.isSuccessful) {
-                    if (continuation.isActive)
-                        continuation.resume(AuthResponse.Success(task.result.user))
-                } else {
-                    val msg = task.exception?.message ?: "Phone sign in failed"
-                    Log.e(TAG, "Phone sign in failed: $msg")
-                    if (continuation.isActive) continuation.resume(AuthResponse.Error(msg))
-                }
-            }
-    }
 
     // -------------------------------------------------------------------------
     // Admin / User Management

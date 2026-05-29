@@ -5,8 +5,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PhoneIphone
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
@@ -48,7 +46,6 @@ import kotlinx.coroutines.delay
  * 
  * This screen provides multiple authentication options including:
  * - Google Sign-In
- * - Apple Sign-In
  * - Email Sign-In
  * - Sign Up navigation
  * 
@@ -64,7 +61,6 @@ import kotlinx.coroutines.delay
  * ```
  * LoginScreen(
  *     onContinueWithGoogleClick = { /* handle Google sign in */ },
- *     onContinueWithAppleClick = { /* handle Apple sign in */ },
  *     onContinueWithEmailClick = { /* navigate to email login */ },
  *     onSignUpClick = { /* navigate to sign up */ }
  * )
@@ -72,7 +68,6 @@ import kotlinx.coroutines.delay
  */
 @Composable
 fun LoginScreen(
-    onContinueWithPhoneClick: () -> Unit,
     onContinueWithEmailClick: () -> Unit,
     onSignUpClick: () -> Unit,
     onSignInSuccess: () -> Unit,
@@ -175,7 +170,6 @@ fun LoginScreen(
                 )
 
                 // Google Sign-In Button - primary social login option
-                // Google Sign-In Button - primary social login option
                 CustomButton(
                     label = R.string.sign_in_with_google,
                     tintColor = MaterialTheme.colorScheme.scrim,
@@ -208,17 +202,6 @@ fun LoginScreen(
                     },
                     enabled = !authState.isLoading,
                     contentDescription = "email icon",
-                )
-
-                // Phone Sign In Button - secondary social login option
-                CustomButton(
-                    label = R.string.sign_in_with_phone,
-                    icon = ButtonIcon.Vector(Icons.Filled.PhoneIphone),
-                    onClick = {
-                        onContinueWithPhoneClick()
-                    },
-                    enabled = !authState.isLoading,
-                    contentDescription = "phone",
                 )
 
                 // Sign Up navigation row - allows users to go to sign-up screen

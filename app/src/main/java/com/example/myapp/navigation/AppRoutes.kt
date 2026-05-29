@@ -47,7 +47,6 @@ object AppRoutes {
     const val SIGN_IN = "sign_in"
     const val SIGN_UP = "sign_up"
     const val EMAIL = "email_login"
-    const val PHONE = "phone_login"
     const val FORGET_PASSWORD = "forget_password"
     const val PASSWORD_RESET_CODE = "password_reset_code"
 

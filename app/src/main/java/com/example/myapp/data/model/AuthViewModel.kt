@@ -420,63 +420,6 @@ class AuthViewModel @Inject constructor(
     }
 
     /**
-     * Starts phone authentication by requesting a one-time password.
-     *
-     * @param phoneNumber Full phone number, including country code.
-     * @param activity Host activity required by Firebase phone authentication.
-     */
-    fun sendOTP(phoneNumber: String, activity: ComponentActivity) {
-        viewModelScope.launch {
-            _authState.update { it.copy(isLoading = true, error = null) }
-
-            when (val result = authRepository.sendOTP(phoneNumber, activity)) {
-                is AuthResponse.Success -> {
-                    _authState.update { it.copy(isLoading = false, error = null) }
-                    _snackBarData.emit(SnackBarData("OTP sent to $phoneNumber"))
-                }
-                is AuthResponse.Error -> {
-                    _authState.update { it.copy(isLoading = false, error = result.message) }
-                    _snackBarData.emit(SnackBarData(result.message, isError = true))
-                }
-            }
-        }
-    }
-
-    /**
-     * Verifies the one-time password from the latest [sendOTP] request.
-     *
-     * @param otp Verification code entered by the user.
-     */
-    fun verifyOTP(otp: String) {
-        viewModelScope.launch {
-            _authState.update { it.copy(isLoading = true, error = null) }
-
-            when (val result = authRepository.verifyOTP(otp)) {
-                is AuthResponse.Success -> {
-                    val uid        = result.user?.uid
-                    val admin      = uid?.let { authRepository.isUserAdmin(it) } ?: false
-                    val superAdmin = uid?.let { authRepository.isUserSuperAdmin(it) } ?: false
-
-                    _authState.update {
-                        it.copy(
-                            isLoading  = false,
-                            user       = result.user,
-                            isSignedIn = true,
-                            admin      = admin,
-                            superAdmin = superAdmin,
-                            error      = null
-                        )
-                    }
-                }
-                is AuthResponse.Error -> {
-                    _authState.update { it.copy(isLoading = false, error = result.message) }
-                    _snackBarData.emit(SnackBarData(result.message, isError = true))
-                }
-            }
-        }
-    }
-
-    /**
      * Sends a password reset email and updates [AuthState.isEmailSent] on success.
      *
      * @param email Account email that should receive the reset link.

@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PhoneIphone
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
@@ -69,7 +67,6 @@ import kotlinx.coroutines.delay
  * @param onNavigateToShopScreen Callback for navigation after sign-in.
  * @param onNavigateToSignUpScreen Callback for navigation to sign-up screen.
  * @param viewModel AuthViewModel instance for authentication.
- * @param onContinueWithPhoneClick Callback for phone sign-in.
  * @param networkManager NetworkManager instance for network state.
  *
  * Usage:
@@ -87,7 +84,6 @@ fun EmailLoginScreen(
     onNavigateToShopScreen: () -> Unit = {},
     onNavigateToSignUpScreen: () -> Unit = {},
     viewModel: AuthViewModel = hiltViewModel(),
-    onContinueWithPhoneClick: () -> Unit,
     networkManager: NetworkManager = hiltViewModel<NetworkViewModel>().networkManager
 ) {
     val context = LocalContext.current
@@ -327,17 +323,6 @@ fun EmailLoginScreen(
                         }
                     },
                     contentDescription = "Google Icon",
-                    enabled = !authState.isLoading
-                )
-
-                // Phone Sign In Button - secondary social login option
-                CustomButton(
-                    label = R.string.sign_in_with_phone,
-                    icon = ButtonIcon.Vector(Icons.Filled.PhoneIphone),
-                    onClick = {
-                        onContinueWithPhoneClick()
-                    },
-                    contentDescription = "phone",
                     enabled = !authState.isLoading
                 )
 

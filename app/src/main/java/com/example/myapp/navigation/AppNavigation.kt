@@ -61,7 +61,6 @@ import com.example.myapp.view.screens.bottom_bar.ShopScreen
 import com.example.myapp.view.screens.forms.EmailLoginScreen
 import com.example.myapp.view.screens.forms.ForgotPasswordScreen
 import com.example.myapp.view.screens.forms.LoginScreen
-import com.example.myapp.view.screens.forms.PhoneAuthScreen
 import com.example.myapp.view.screens.forms.SignUpScreen
 import com.example.myapp.view.screens.product.CartScreen
 import com.example.myapp.view.screens.product.PaymentScreen
@@ -662,7 +661,6 @@ fun AppNavigationGraph(
                         }
                     ) {
                         LoginScreen(
-                            onContinueWithPhoneClick = { navController.navigate(AppRoutes.PHONE) },
                             onContinueWithEmailClick = { navController.navigate(AppRoutes.EMAIL) },
                             onSignUpClick = { navController.navigate(AppRoutes.SIGN_UP) },
                             onSignInSuccess = {
@@ -719,28 +717,6 @@ fun AppNavigationGraph(
                             onNavigateToSignUpScreen = { navController.navigate(AppRoutes.SIGN_UP) },
                             onNavigateToShopScreen = { navController.navigate(AppRoutes.SHOP) },
                             onForgetPasswordClick = { navController.navigate(AppRoutes.FORGET_PASSWORD) },
-                            onContinueWithPhoneClick = { navController.navigate(AppRoutes.PHONE) }
-                        )
-                    }
-                }
-
-                composable(
-                    route = AppRoutes.PHONE,
-                    enterTransition = { NavigationAnimations.slideInFromLeft() },
-                    exitTransition = { NavigationAnimations.slideOutToRight() },
-                    popEnterTransition = { NavigationAnimations.slideInFromLeft() },
-                    popExitTransition = { NavigationAnimations.slideOutToRight() }
-                ) {
-                    GuestGuard(
-                        onAuthenticated = {
-                            navController.navigate(AppRoutes.SHOP) {
-                                popUpTo(navController.graph.startDestinationId) { inclusive = true }
-                                launchSingleTop = true
-                            }
-                        }
-                    ) {
-                        PhoneAuthScreen(
-                            onSignInSuccess = { navController.navigate(AppRoutes.SHOP) }
                         )
                     }
                 }

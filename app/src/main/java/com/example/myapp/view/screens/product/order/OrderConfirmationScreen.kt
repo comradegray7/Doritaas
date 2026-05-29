@@ -89,7 +89,7 @@ fun OrderConfirmationScreen(
     Column(
         modifier = Modifier
             .verticalScroll(scrollState)
-            .padding(vertical = windowSizeClass.baseSize)
+            .padding(vertical = windowSizeClass.contentPadding)
             .fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -150,8 +150,11 @@ fun OrderConfirmationScreen(
 
                 CustomSpacer()
 
-
                 // View Order Details Button - Opens Dialog
+                PaddedSection(
+                    contentPadding = windowSizeClass.customSpacerLarge,
+                    alignment = Alignment.CenterHorizontally,
+                    content = {
                 CustomButton(
                     buttonColors = ButtonDefaults.outlinedButtonColors(
                         containerColor = MaterialTheme.colorScheme.outlineVariant
@@ -170,7 +173,7 @@ fun OrderConfirmationScreen(
                     onClick = onContinueShopping,
                     icon = ButtonIcon.Vector(Icons.Filled.ShoppingBag),
                     contentDescription = "Continue Shopping Button",
-                )
+                )})
             })
     }
     // Order Details Dialog

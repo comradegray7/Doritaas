@@ -105,7 +105,6 @@ class OrderViewModel @Inject constructor(
     /**
      * Filter orders by status.
      *
-     * FIX: Removed `orders = emptyList()` from the loading state so the previous
      * list stays visible during the fetch, preventing a flash of empty state.
      *
      * @param status The status string to filter by (e.g., "pending", "shipped").
@@ -118,7 +117,6 @@ class OrderViewModel @Inject constructor(
                     isLoading = true,
                     error = null,
                     selectedStatus = status
-                    // FIX: Do NOT clear orders = emptyList() here.
                     // Clearing it causes a flash of the empty-state UI on every filter
                     // change while the new data is in-flight. The previous list stays
                     // visible behind the shimmer until the real results arrive.
@@ -191,30 +189,45 @@ class OrderViewModel @Inject constructor(
      *
      * Used by admins to progress an order through its lifecycle.
      *
-     * @param orderId ID of the order to update
-     * @param status New status value (e.g., "shipped")
+     */
+    /**
+     * Update the status of an order with Optimistic UI updates.
      */
     fun updateOrderStatus(orderId: String, status: String) {
-        viewModelScope.launch {
-            _orderState.update {
-                it.copy(isLoading = true, error = null, isSuccess = false)
-            }
+        // 1. Capture the previous state in case we need to roll back
+        val previousOrders = _orderState.value.orders
 
+        // 2. Optimistically update the local list immediately
+        _orderState.update { currentState ->
+            currentState.copy(
+                orders = currentState.orders.map {
+                    if (it.id == orderId) it.copy(status = status) else it
+                },
+                // DO NOT set isLoading = true here, it prevents the "jumpy" UI
+                isSuccess = false
+            )
+        }
+
+        viewModelScope.launch {
             orderRepository.updateOrderStatus(orderId, status).fold(
-                onSuccess = { order ->
-                    _orderState.update {
-                        it.copy(isLoading = false, isSuccess = true, currentOrder = order, error = null)
+                onSuccess = { updatedOrder ->
+                    // Update specific order details if the server returned extra info
+                    _orderState.update { currentState ->
+                        currentState.copy(
+                            isSuccess = true,
+                            orders = currentState.orders.map {
+                                if (it.id == orderId) updatedOrder else it
+                            }
+                        )
                     }
                     _snackBarData.emit(SnackBarData("Order status updated to $status"))
-                    refreshCurrentView()
                 },
                 onFailure = { exception ->
+                    // 3. Rollback on failure
+                    _orderState.update { it.copy(orders = previousOrders) }
                     Log.e(TAG, "Failed to update order status: ${exception.message}")
-                    _orderState.update {
-                        it.copy(isLoading = false, isSuccess = false, error = exception.message)
-                    }
                     _snackBarData.emit(
-                        SnackBarData(exception.message ?: "Failed to update order status", "Error")
+                        SnackBarData(exception.message ?: "Update failed. Please try again.", "Error")
                     )
                 }
             )
@@ -222,25 +235,26 @@ class OrderViewModel @Inject constructor(
     }
 
     /**
-     * Delete an order by ID.
-     *
-     * @param orderId The ID of the order to delete
+     * Delete an order with Optimistic UI updates.
      */
     fun deleteOrder(orderId: String) {
-        viewModelScope.launch {
-            _orderState.update { it.copy(isLoading = true, error = null) }
+        val previousOrders = _orderState.value.orders
 
+        // Optimistically remove from list immediately
+        _orderState.update { currentState ->
+            currentState.copy(
+                orders = currentState.orders.filter { it.id != orderId }
+            )
+        }
+
+        viewModelScope.launch {
             orderRepository.deleteOrder(orderId).fold(
                 onSuccess = {
-                    _orderState.update { it.copy(isLoading = false, error = null) }
                     _snackBarData.emit(SnackBarData("Order deleted successfully"))
-                    refreshCurrentView()
                 },
                 onFailure = { exception ->
-                    Log.e(TAG, "Failed to delete order: ${exception.message}")
-                    _orderState.update {
-                        it.copy(isLoading = false, error = exception.message)
-                    }
+                    // Rollback if delete fails
+                    _orderState.update { it.copy(orders = previousOrders) }
                     _snackBarData.emit(
                         SnackBarData(exception.message ?: "Failed to delete order", "Error")
                     )

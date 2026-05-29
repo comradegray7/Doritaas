@@ -37,12 +37,10 @@
     <string name="do_not_have_account">Do not have an Account?</string>
     <string name="already_have_account">Already have an Account?</string>
     <string name="sign_in_to_your_account">Sign in to your Account</string>
-    <string name="sign_in_with_otp">Sign in With OTP</string>
 
     <!-- sign in/up with social and email   -->
     <string name="sign_in_with_google">Continue with Google</string>
     <string name="sign_in_with_Email">Continue with Email</string>
-    <string name="sign_in_with_phone">Continue with Phone</string>
 
     <!--    password reset-->
     <string name="forgot_password">Forget Password?</string>
@@ -70,12 +68,6 @@
     <string name="cancel">Cancel</string>
     <string name="confirm">Confirm</string>
     <string name="close">Close</string>
-    <string name="change_number">Change Number</string>
-    <string name="total_amount">Total Amount</string>
-    <string name="send_otp">Send OTP</string>
-    <string name="otp">OTP</string>
-    <string name="phone_placeholder">+1234567890</string>
-    <string name="otp_placeholder">000000</string>
     <string name="phone_number">Phone Number</string>
     <string name="enter_phone_number">Enter Phone Number</string>
 
@@ -114,12 +106,10 @@
     <string name="redirect_url_placeholder">https://example.com/image.jpg</string>
     <string name="required">Required</string>
     <string name="quantity_state">Quantity must be a positive number</string>
-    <string name="items_total">Items Total</string>
 
     <!-- Delivery Address -->
     <string name="add_delivery_address">Add Delivery Address</string>
     <string name="add_address">Create</string>
-    <string name="create_address">Add Address</string>
     <string name="order_details">Order Details</string>
     <string name="creating_order">Creating Order…</string>
     <string name="payment_successful">Payment Successful</string>
@@ -365,7 +355,6 @@
 
     <!-- Checkout with Prime -->
     <string name="order_summary">Order Summary</string>
-    <string name="order_summary_with_prime">Order Summary with Prime</string>
     <string name="filter_orders">Filter Orders</string>
     <string name="prime_discount">Prime Discount (20%%)</string>
 
@@ -470,7 +459,6 @@ Review them anytime and easily move them to your bag.</string>
     <string name="shipping_option">Shipping Options</string>
     <string name="shipping">Shipping Options</string>
     <string name="no_shipping_option">No shipping options available"</string>
-    <string name="shipping_total">Shipping Total</string>
     <string name="featured_products">Featured Products</string>
     <string name="free_products">Free Shipping Products</string>
     <string name="contact_info">Contact Information</string>
@@ -497,13 +485,6 @@ Review them anytime and easily move them to your bag.</string>
     <string name="web_client_id">759628092968-o7mkfqqfvpctbsu423jr1at5prvd3th4.apps.googleusercontent.com</string>
     <string name="manage_users">Manage Users\n</string>
     <string name="search_users">Search Users</string>
-    <string name="toggle_admin">Update Admin status</string>
     <string name="user_error">User Error</string>
-    <string name="display_name">Display Name</string>
-    <string name="add_user">Add User</string>
-    <string name="compare_products">Compare Products</string>
-    <string name="go_back">Go Back</string>
-    <string name="compare">Compare\n</string>
-    <string name="vat">VAT</string>
 
 </resources>
